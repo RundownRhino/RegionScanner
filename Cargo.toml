@@ -1,0 +1,17 @@
+[package]
+authors = ["RundownRhino <52856631+RundownRhino@users.noreply.github.com>"]
+edition = "2018"
+name = "region_scanner"
+version = "0.1.0"
+about = "A CLI program to scan Minecraft region files and create Just Enough Resources world-gen.json files from the results. Tested on 1.16."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.3"
+fastanvil = "0.14.1"
+fastnbt = "0.14.0"
+itertools = "0.10.0"
+rayon = "1.5.0"
+serde = "=1.0.118"
+serde_json = "1.0.61"
