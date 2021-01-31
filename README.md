@@ -33,4 +33,4 @@ Also see options and usage examples in the previous section.
 
 4. Watch the scanning progress. The program currently reports on starting every new region, as well as prints a report for every dimension.
 
-5. After finishing, the program will create (and overwrite if present) a `world-gen.json` file in the same folder as itself. This file goes into the `/config` folder of your Minecraft instance. After reloading the world, your Just Enough Resources should find it and start showing the Ore Generation tabs for every block that was in the scanned area. Filtering is currently not implemented - you can filter the JSON manually if needed.
+5. After finishing, the program will create (and overwrite if present) a `world-gen.json` file in the `output` folder where you put it. This file goes into the `/config` folder of your Minecraft instance. After reloading the world, your Just Enough Resources should find it and start showing the Ore Generation tabs for every block that was in the scanned area. Filtering is currently not implemented - you can filter the JSON manually if needed.
