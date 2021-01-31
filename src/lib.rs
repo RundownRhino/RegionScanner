@@ -184,6 +184,7 @@ pub fn get_path_from_dimension(dimension: &str) -> Option<PathBuf> {
             let mut result = PathBuf::from(r"dimensions/");
             result.push(parts.get(0)?);
             result.push(parts.get(1)?);
+            result.push("region");
             Some(result)
         }
     }
