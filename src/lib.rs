@@ -157,7 +157,7 @@ fn freqs_to_distrib(freqs: &[f64]) -> String {
     freqs
         .iter()
         .enumerate()
-        .map(|(value, y)| format!("{},{};", y, value))
+        .map(|(y, value)| format!("{},{};", y, value))
         .for_each(|x| distrib.push_str(&x));
     distrib
 }
