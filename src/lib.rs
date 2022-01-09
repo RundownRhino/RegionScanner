@@ -5,27 +5,21 @@
 //         assert_eq!(2 + 2, 4);
 //     }
 // }
-use fastanvil::{Chunk, Region};
-use fastnbt::de;
+use fastanvil::pre18::JavaChunk;
+use fastanvil::{CCoord, Chunk, Region};
 
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::io::{Read, Seek};
 use std::ops::{Add, Mul};
 use std::path::{Path, PathBuf};
 
-pub fn count_blocks<A: Seek + Read>(
-    region: &mut Region<A>,
-    verbose: bool,
-    dimension: &str,
-) -> BlockCounts {
+pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
     let mut blocks_counted: u64 = 0;
     let mut counts: HashMap<String, Vec<u64>> = HashMap::new();
-    let closure = |xpos: usize, zpos: usize, chunk: &Vec<u8>| {
-        let mut chunk_processed: Chunk = de::from_bytes(chunk.as_slice()).unwrap();
+    let mut closure = |xpos: usize, zpos: usize, chunk_processed: JavaChunk| {
         if verbose && chunks_counted % 100 == 0 {
             println!(
                 "Handling chunk number {} at position ({},{})",
@@ -39,15 +33,21 @@ pub fn count_blocks<A: Seek + Read>(
                 let block = chunk_processed.block(x, y, z);
                 if let Some(a) = block {
                     counts
-                        .entry(a.name.to_string())
-                        .or_insert_with(|| vec![0; 256])[y] += 1;
+                        .entry(a.name().to_string())
+                        .or_insert_with(|| vec![0; 256])[y as usize] += 1;
                 }
                 blocks_counted += 1;
             }
         }
         chunks_counted += 1;
     };
-    region.for_each_chunk(closure).unwrap();
+    for x in 0..32 {
+        for z in 0..32 {
+            if let Some(c) = region.chunk(CCoord(x), CCoord(z)) {
+                closure(x as usize, z as usize, c);
+            }
+        }
+    }
     BlockCounts {
         counts,
         //elapsed_time,
@@ -84,12 +84,12 @@ impl BlockFrequencies {
         }
     }
 }
-pub fn count_frequencies<A: Seek + Read>(
-    mut region: &mut Region<A>,
+pub fn count_frequencies(
+    region: &dyn Region<JavaChunk>,
     verbose: bool,
     dimension: &str,
 ) -> BlockFrequencies {
-    let counting_results = count_blocks(&mut region, verbose, dimension);
+    let counting_results = count_blocks(region, verbose, dimension);
     let area: u64 = (16 * 16) * counting_results.chunks_counted as u64;
     let mut frequencies: HashMap<String, Vec<f64>> = HashMap::new();
     let d_area = area as f64;
@@ -129,7 +129,7 @@ pub fn vector_add_weighted<T: Add<T, Output = T> + Mul<f64, Output = T> + Copy>(
     b: &[T],
     a_weight: f64,
 ) {
-    if !(0.0 <= a_weight && a_weight <= 1.0) {
+    if !(0.0..=1.0).contains(&a_weight) {
         panic!("Weight is not in the [0,1] range!");
     }
     let b_weight = 1.0 - a_weight;
@@ -144,7 +144,7 @@ pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serd
         for (name, freqs) in &freq_data.frequencies {
             distrib_list.push(BlockJERDistributionData {
                 block: name.clone(),
-                distrib: freqs_to_distrib(&freqs),
+                distrib: freqs_to_distrib(freqs),
                 silktouch: false,
                 dim: freq_data.dimension.clone().to_string(),
             });
@@ -201,7 +201,7 @@ fn test_dim_to_path_conversions() {
         println!(
             "{} : {}",
             s,
-            get_path_from_dimension(&s).unwrap().to_str().unwrap()
+            get_path_from_dimension(s).unwrap().to_str().unwrap()
         );
     }
 }
