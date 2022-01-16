@@ -1,5 +1,6 @@
 use clap::{crate_authors, crate_description, crate_version, App, Arg};
-use fastanvil::Region;
+use fastanvil::pre18::JavaChunk;
+use fastanvil::{RegionLoader, RegionFileLoader, RCoord};
 use itertools::iproduct;
 use rayon::prelude::*;
 use region_scanner::*;
@@ -127,24 +128,14 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     let (total_freqs, valid_regions) = indexes
         .par_iter()
         .map(|(reg_x, reg_z)| {
-            let mut s = regionfolder.clone();
-            s.push(format!(r"r.{}.{}.mca", reg_x, reg_z));
-            //let s = format!(r"{}\r.{}.{}.mca", regionfolder, reg_x, reg_z);
-            let file = std::fs::File::open(&s);
-            match file {
-                Ok(file) => {
+            let s = regionfolder.clone();
+            let regions = RegionFileLoader::<JavaChunk>::new(s);
+            match regions.region(RCoord(*reg_x ), RCoord(*reg_z )) {
+                Some(region) => {
                     println!("Processing region ({},{}).", reg_x, reg_z);
-                    let mut region = Region::new(file);
-                    (RegionResult::Ok(count_frequencies(&mut region, verbose,dimension)), 1)
+                    (RegionResult::Ok(count_frequencies(&*region, verbose,dimension)), 1)
                 }
-                Err(e) => {
-                    if let std::io::ErrorKind::NotFound = e.kind() {
-                        println!("Region ({},{}) not found.", reg_x, reg_z)
-                    } else {
-                        println!("Found region, but wasn't able to open: {}.\nGot the following error:{}", s.to_string_lossy(), e);
-                    }
-                    (RegionResult::Ignore, 0)
-                }
+                None => {println!("Region ({},{}) not found.", reg_x, reg_z);(RegionResult::Ignore, 0)},
             }
         })
         .reduce(
@@ -194,6 +185,7 @@ enum RegionResult {
     Ignore,
 }
 
+#[allow(dead_code)]
 fn print_results(result: &BlockFrequencies) {
     let max_len = result
         .frequencies
