@@ -1,10 +1,3 @@
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn it_works() {
-//         assert_eq!(2 + 2, 4);
-//     }
-// }
 use fastanvil::pre18::JavaChunk;
 use fastanvil::{CCoord, Chunk, Region};
 
@@ -50,7 +43,6 @@ pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &s
     }
     BlockCounts {
         counts,
-        //elapsed_time,
         blocks_counted,
         chunks_counted,
         dimension: dimension.to_string(),
@@ -59,14 +51,12 @@ pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &s
 
 pub struct BlockCounts {
     pub counts: HashMap<String, Vec<u64>>,
-    //pub elapsed_time: f32,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub dimension: String,
 }
 pub struct BlockFrequencies {
     pub frequencies: HashMap<String, Vec<f64>>,
-    //pub elapsed_time: f32,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub area: u64,
@@ -76,7 +66,6 @@ impl BlockFrequencies {
     pub fn empty(dimension: String) -> BlockFrequencies {
         BlockFrequencies {
             frequencies: HashMap::new(),
-            //elapsed_time: 0.0,
             blocks_counted: 0,
             chunks_counted: 0,
             area: 0,
@@ -98,7 +87,6 @@ pub fn count_frequencies(
     }
     BlockFrequencies {
         frequencies,
-        //elapsed_time: counting_results.elapsed_time,
         blocks_counted: counting_results.blocks_counted,
         chunks_counted: counting_results.chunks_counted,
         area,
@@ -120,7 +108,6 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
         }
     }
     main.area += other.area;
-    //main.elapsed_time += other.elapsed_time;
     main.blocks_counted += other.blocks_counted;
     main.chunks_counted += other.chunks_counted;
 }
