@@ -192,16 +192,37 @@ pub fn get_path_from_dimension(dimension: &str) -> Option<PathBuf> {
 
 #[test]
 fn test_dim_to_path_conversions() {
-    for s in &[
-        "minecraft:overworld",
-        "minecraft:the_end",
-        "minecraft:the_nether",
-        "appliedenergistics2:spatial_storage",
-    ] {
-        println!(
-            "{} : {}",
-            s,
-            get_path_from_dimension(s).unwrap().to_str().unwrap()
+    let correct_results = [
+        ("minecraft:overworld", "region"),
+        ("minecraft:the_end", "DIM1/region"),
+        ("minecraft:the_nether", "DIM-1/region"),
+        (
+            "appliedenergistics2:spatial_storage",
+            r"dimensions/appliedenergistics2\spatial_storage\region",
+        ),
+    ];
+    let mut wrong = vec![];
+    for (inp, out) in correct_results {
+        let generated = get_path_from_dimension(inp).map(|x| x.to_str().unwrap().to_owned());
+
+        if generated.is_none() || generated.as_ref().unwrap() != out {
+            wrong.push((inp, out, generated));
+        }
+    }
+    if !wrong.is_empty() {
+        let mut panic_str = format!(
+            "Of {} conversion tests, {} failed:",
+            correct_results.len(),
+            wrong.len()
         );
+        for (inp, out, generated) in wrong {
+            panic_str.push_str(&format!(
+                "\nInput: '{}', expected: '{}', got: '{}'",
+                inp,
+                generated.unwrap_or_else(|| "<invalid input>".to_string()),
+                out
+            ));
+        }
+        panic!("{}", panic_str);
     }
 }
