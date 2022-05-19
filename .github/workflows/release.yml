@@ -54,16 +54,12 @@ jobs:
       RUST_BACKTRACE: 1
     strategy:
       matrix:
-        build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
+        build: [linux, macos, win-msvc, win-gnu, win32-msvc]
         include:
         - build: linux
           os: ubuntu-18.04
           rust: nightly
           target: x86_64-unknown-linux-musl
-        - build: linux-arm
-          os: ubuntu-18.04
-          rust: nightly
-          target: arm-unknown-linux-gnueabihf
         - build: macos
           os: macos-latest
           rust: nightly
@@ -87,14 +83,14 @@ jobs:
       with:
         fetch-depth: 1
 
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        ci/ubuntu-install-packages
-    - name: Install packages (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        ci/macos-install-packages
+#     - name: Install packages (Ubuntu)
+#       if: matrix.os == 'ubuntu-18.04'
+#       run: |
+#         ci/ubuntu-install-packages
+#     - name: Install packages (macOS)
+#       if: matrix.os == 'macos-latest'
+#       run: |
+#         ci/macos-install-packages
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -103,13 +99,13 @@ jobs:
         override: true
         target: ${{ matrix.target }}
 
-    - name: Use Cross
-      shell: bash
-      run: |
-        cargo install cross
-        echo "CARGO=cross" >> $GITHUB_ENV
-        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+#     - name: Use Cross
+#       shell: bash
+#       run: |
+#         cargo install cross
+#         echo "CARGO=cross" >> $GITHUB_ENV
+#         echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+#         echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
     - name: Show command used for Cargo
       run: |
         echo "cargo command is: ${{ env.CARGO }}"
@@ -122,14 +118,6 @@ jobs:
       if: matrix.build == 'linux' || matrix.build == 'macos'
       run: strip "target/${{ matrix.target }}/release/rs"
 
-    - name: Strip release binary (arm)
-      if: matrix.build == 'linux-arm'
-      run: |
-        docker run --rm -v \
-          "$PWD/target:/target:Z" \
-          rustembedded/cross:arm-unknown-linux-gnueabihf \
-          arm-linux-gnueabihf-strip \
-          /target/arm-unknown-linux-gnueabihf/release/rs
     - name: Build archive
       shell: bash
       run: |
