@@ -4,7 +4,7 @@ A CLI program to scan Minecraft region files and create Just Enough Resources wo
 # Usage:
 `region_scanner --dims <DIMENSION_ID> --path <FOLDER> --zone <ZONE>`.
 
-See `--help` for help. For example:
+See `--help` for help. Excerpt:
 ```
 OPTIONS:
     --dims <DIMENSION_ID>...
