@@ -5,6 +5,7 @@ use rayon::prelude::*;
 use region_scanner::*;
 use std::io::prelude::Write;
 use std::time::Instant;
+use indoc::indoc;
 
 fn main() {
     let matches = Command::new("Region scanner")
@@ -14,26 +15,29 @@ fn main() {
         .arg(Arg::new("path")
             .long("path")
             .value_name("FOLDER")
-            .help(r"The absolute path to the save folder of the world in question.
+            .help(indoc!(r"
+            The absolute path to the save folder of the world in question.
             This is the folder the 'region' folder is in.
-            Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld'")
+            Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld'"))
             .takes_value(true)
             .required(true)
         ) 
         .arg(Arg::new("dims")
             .long("dims")
             .value_name("DIMENSION_ID")
-            .help("The dimension ID in the new format.
-            Examples: 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end','jamd:mining'.")
+            .help(indoc!("
+            The dimension ID in the new format.
+            Examples: 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end','jamd:mining'."))
             .takes_value(true)
             .required(true)
             .min_values(1)
         )
         .arg(Arg::new("zone")
             .long("zone")
-            .value_name("ZONE")
-            .help("The zone to scan in every dimension, in regions, in the format of 'from_x,to_x,from_z,to_z'.
-            For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and (0,0).")
+            .value_names(&["FROM_X", "TO_X", "FROM_Z", "TO_Z"])
+            .help(indoc!("
+            The zone to scan in every dimension, in regions, in the format of 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
+            For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and (0,0)."))
             .takes_value(true)
             .required(true)
             .number_of_values(4)
