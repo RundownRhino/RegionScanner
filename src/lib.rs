@@ -118,7 +118,7 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
     main.chunks_counted += other.chunks_counted;
 }
 pub fn vector_add_weighted<T: Add<T, Output = T> + Mul<f64, Output = T> + Copy>(
-    a: &mut Vec<T>,
+    a: &mut [T],
     b: &[T],
     a_weight: f64,
 ) {
