@@ -22,7 +22,7 @@ fn main() {
             Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld'"))
             .takes_value(true)
             .required(true)
-        ) 
+        )
         .arg(Arg::new("dims")
             .long("dims")
             .value_name("DIMENSION_ID")
@@ -106,8 +106,8 @@ fn scan_multiple(
                 "Warning".red(), dim, path.display())
             },
             DimensionScanResult::NoChunksFound => {
-                println!("{}: zero scannable chunks found in dimension {} located at '{}', \
-                despite regions being found.",
+                println!("{}: zero scannable chunks found in dimension {} located at '{}', despite regions being found. This might be caused by the world being of a minecraft \
+                version that's not supported, or it might be that the existing regions in the zone are all chunkless.",
                 "Warning".red(), dim, path.display())
             },
         }
