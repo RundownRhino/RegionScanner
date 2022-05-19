@@ -6,6 +6,7 @@ use region_scanner::*;
 use std::io::prelude::Write;
 use std::time::Instant;
 use indoc::indoc;
+use colored::*;
 
 fn main() {
     let matches = Command::new("Region scanner")
@@ -99,7 +100,17 @@ fn scan_multiple(
         );
         match process_zone_in_folder(path, zone, dim) {
             DimensionScanResult::Ok(freqs) => freqs_by_dim.push(freqs),
-            DimensionScanResult::NoRegionsPresent => println!("No regions were found!"),
+            DimensionScanResult::NoRegionsPresent => {
+                println!("{}: no regions were found in dimension {} located at '{}'. \
+                The zone specified has no regions, or the dimension isn't generated at all.",
+                "Warning".red(), dim, path.display())
+            },
+            DimensionScanResult::NoChunksFound => {
+                println!("{}: zero scannable chunks found in dimension {} located at '{}', \
+                despite regions being found. This is likely \
+                caused by trying to scan a 1.18 world.",
+                "Warning".red(), dim, path.display())
+            },
         }
     }
     freqs_by_dim
@@ -115,6 +126,7 @@ impl From<Vec<isize>> for Zone{
 enum DimensionScanResult {
     Ok(BlockFrequencies),
     NoRegionsPresent,
+    NoChunksFound,
 }
 
 fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
@@ -180,6 +192,9 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         elapsed_time / valid_regions as f32,
         elapsed_time / (total_freqs.chunks_counted as f32) * 1024.0
     );
+    if total_freqs.chunks_counted==0{
+        return DimensionScanResult::NoChunksFound;
+    }
     DimensionScanResult::Ok(total_freqs)
 }
 
