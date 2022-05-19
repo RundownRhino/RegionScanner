@@ -119,7 +119,6 @@ jobs:
     - name: Build archive
       shell: bash
       run: |
-        outdir="$(ci/cargo-out-dir "${{ env.TARGET_DIR }}")"
         staging="region_scanner-${{ needs.create-release.outputs.rs_version }}-${{ matrix.target }}"
         mkdir -p "$staging"/{complete}
         cp {README.md,LICENSE} "$staging/"
