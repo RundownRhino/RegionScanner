@@ -1,12 +1,12 @@
-use clap::{Command,crate_authors, crate_description, crate_version, Arg};
-use fastanvil::{RegionLoader, RegionFileLoader, RCoord};
+use clap::{crate_authors, crate_description, crate_version, Arg, Command};
+use colored::*;
+use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
+use indoc::indoc;
 use itertools::iproduct;
 use rayon::prelude::*;
 use region_scanner::*;
 use std::io::prelude::Write;
 use std::time::Instant;
-use indoc::indoc;
-use colored::*;
 
 fn main() {
     let matches = Command::new("Region scanner")
@@ -49,14 +49,21 @@ fn main() {
     //println!("{:?}", matches);
     //panic!();
     let save_str = matches.value_of("path").unwrap();
-    let dims_to_scan:Vec<&str> = matches.values_of("dims").unwrap().collect();
-    if !std::path::Path::new(save_str).exists(){
-        panic!("It doesn't seem like the path {} exists!",save_str);
+    let dims_to_scan: Vec<&str> = matches.values_of("dims").unwrap().collect();
+    if !std::path::Path::new(save_str).exists() {
+        panic!("It doesn't seem like the path {} exists!", save_str);
     }
     let save_path = std::path::PathBuf::from(save_str);
-    let zone_values: Vec<isize> = matches.values_of("zone").unwrap().map(|s| s.parse().unwrap()).collect();
-    if zone_values.len() != 4{
-        panic!("Wrong number of zone values! Expected: 4, got : {}",zone_values.len());
+    let zone_values: Vec<isize> = matches
+        .values_of("zone")
+        .unwrap()
+        .map(|s| s.parse().unwrap())
+        .collect();
+    if zone_values.len() != 4 {
+        panic!(
+            "Wrong number of zone values! Expected: 4, got : {}",
+            zone_values.len()
+        );
     }
     let zone: Zone = Zone::from(zone_values);
     let mut paths_to_scan = vec![];
@@ -87,10 +94,7 @@ fn main() {
         .unwrap();
 }
 
-fn scan_multiple(
-    dim_paths: &[(&str, std::path::PathBuf)],
-    zone: Zone,
-) -> Vec<BlockFrequencies> {
+fn scan_multiple(dim_paths: &[(&str, std::path::PathBuf)], zone: Zone) -> Vec<BlockFrequencies> {
     let mut freqs_by_dim = vec![];
     for (dim, path) in dim_paths {
         println!(
@@ -101,25 +105,42 @@ fn scan_multiple(
         match process_zone_in_folder(path, zone, dim) {
             DimensionScanResult::Ok(freqs) => freqs_by_dim.push(freqs),
             DimensionScanResult::NoRegionsPresent => {
-                println!("{}: no regions were found in dimension {} located at '{}'. \
-                The zone specified has no regions, or the dimension isn't generated at all.",
-                "Warning".red(), dim, path.display())
-            },
+                println!(
+                    "{}: no regions were found in dimension {} located at '{}'. The zone \
+                     specified has no regions, or the dimension isn't generated at all.",
+                    "Warning".red(),
+                    dim,
+                    path.display()
+                )
+            }
             DimensionScanResult::NoChunksFound => {
-                println!("{}: zero scannable chunks found in dimension {} located at '{}', despite regions being found. This might be caused by the world being of a minecraft \
-                version that's not supported, or it might be that the existing regions in the zone are all chunkless.",
-                "Warning".red(), dim, path.display())
-            },
+                println!(
+                    "{}: zero scannable chunks found in dimension {} located at '{}', despite \
+                     regions being found. This might be caused by the world being of a minecraft \
+                     version that's not supported, or it might be that the existing regions in \
+                     the zone are all chunkless.",
+                    "Warning".red(),
+                    dim,
+                    path.display()
+                )
+            }
         }
     }
     freqs_by_dim
 }
-#[derive(Copy,Clone)]
-struct Zone(isize,isize,isize,isize);
-impl From<Vec<isize>> for Zone{
-    fn from(vec: Vec<isize>) -> Self{
-        if vec.len()<4{panic!("Vector too small to convert to a Zone:{:?}",vec);}
-        Zone(*vec.get(0).unwrap(),*vec.get(1).unwrap(),*vec.get(2).unwrap(),*vec.get(3).unwrap())
+#[derive(Copy, Clone)]
+struct Zone(isize, isize, isize, isize);
+impl From<Vec<isize>> for Zone {
+    fn from(vec: Vec<isize>) -> Self {
+        if vec.len() < 4 {
+            panic!("Vector too small to convert to a Zone:{:?}", vec);
+        }
+        Zone(
+            *vec.get(0).unwrap(),
+            *vec.get(1).unwrap(),
+            *vec.get(2).unwrap(),
+            *vec.get(3).unwrap(),
+        )
     }
 }
 enum DimensionScanResult {
@@ -144,12 +165,18 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         .map(|(reg_x, reg_z)| {
             let s = regionfolder.clone();
             let regions = RegionFileLoader::new(s);
-            match regions.region(RCoord(*reg_x ), RCoord(*reg_z )) {
+            match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
                 Some(mut region) => {
                     println!("Processing region ({},{}).", reg_x, reg_z);
-                    (RegionResult::Ok(count_frequencies(&mut region, verbose,dimension)), 1)
+                    (
+                        RegionResult::Ok(count_frequencies(&mut region, verbose, dimension)),
+                        1,
+                    )
                 }
-                None => {println!("Region ({},{}) not found.", reg_x, reg_z);(RegionResult::Ignore, 0)},
+                None => {
+                    println!("Region ({},{}) not found.", reg_x, reg_z);
+                    (RegionResult::Ignore, 0)
+                }
             }
         })
         .reduce(
@@ -185,13 +212,14 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     println!("Area on each layer:{}", total_freqs.area);
     println!("Blocks counted:{}", total_freqs.blocks_counted);
     println!(
-        "Elapsed:{:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 scanned chunks.",
+        "Elapsed:{:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 \
+         scanned chunks.",
         elapsed_time,
         regions_num,
         elapsed_time / valid_regions as f32,
         elapsed_time / (total_freqs.chunks_counted as f32) * 1024.0
     );
-    if total_freqs.chunks_counted==0{
+    if total_freqs.chunks_counted == 0 {
         return DimensionScanResult::NoChunksFound;
     }
     DimensionScanResult::Ok(total_freqs)
