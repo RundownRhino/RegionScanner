@@ -1,4 +1,4 @@
-use fastanvil::pre18::JavaChunk;
+use fastanvil::JavaChunk;
 use fastanvil::{Chunk, Region};
 
 use itertools::iproduct;
@@ -40,8 +40,8 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
             if let Some(c) = region
                 .read_chunk(x, z)
                 .unwrap()
-                // This silently skips chunks that fail to deserialise to a pre_18::JavaChunk
-                .and_then(|data| fastnbt::from_bytes(&data).ok())
+                // This silently skips chunks that fail to deserialise.
+                .and_then(|data| JavaChunk::from_bytes(&data).ok())
             {
                 closure(x as usize, z as usize, c);
             }

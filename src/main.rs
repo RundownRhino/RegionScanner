@@ -107,8 +107,7 @@ fn scan_multiple(
             },
             DimensionScanResult::NoChunksFound => {
                 println!("{}: zero scannable chunks found in dimension {} located at '{}', \
-                despite regions being found. This is likely \
-                caused by trying to scan a 1.18 world.",
+                despite regions being found.",
                 "Warning".red(), dim, path.display())
             },
         }
