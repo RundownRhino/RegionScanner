@@ -5,21 +5,22 @@ A CLI program to scan Minecraft region files and create Just Enough Resources wo
 `region_scanner --dims <DIMENSION_ID> --path <FOLDER> --zone <ZONE>`.
 
 See ``--help` for help. For example:
-```OPTIONS:
-        --dims <DIMENSION_ID>...
-            The dimension ID in the new format.
-            Examples: 'minecraft:overworld', 'minecraft:the_nether',
-            'minecraft:the_end','jamd:mining'.
-        --path <FOLDER>
-            The absolute path to the save folder of the world in question.
-            This is the folder the 'region' folder is in.
-            Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16
-            v.1.4.1\.minecraft\saves\MyTestWorld'
-        --zone <FROM_X> <TO_X> <FROM_Z> <TO_Z>
-            The zone to scan in every dimension, in regions, in the format of
-            'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
-            For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and
-            (0,0).
+```
+OPTIONS:
+    --dims <DIMENSION_ID>...
+        The dimension ID in the new format.
+        Examples: 'minecraft:overworld', 'minecraft:the_nether',
+        'minecraft:the_end','jamd:mining'.
+    --path <FOLDER>
+        The absolute path to the save folder of the world in question.
+        This is the folder the 'region' folder is in.
+        Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16
+        v.1.4.1\.minecraft\saves\MyTestWorld'
+    --zone <FROM_X> <TO_X> <FROM_Z> <TO_Z>
+        The zone to scan in every dimension, in regions, in the format of
+        'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
+        For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and
+        (0,0).
 ```
 
 Example command: `region_scanner.exe --path "D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld" --dims minecraft:overworld minecraft:the_nether minecraft:the_end --zone -1,1,-1,1`.
