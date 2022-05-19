@@ -1,5 +1,4 @@
-use clap::{crate_authors, crate_description, crate_version, App, Arg};
-use fastanvil::pre18::JavaChunk;
+use clap::{Command,crate_authors, crate_description, crate_version, Arg};
 use fastanvil::{RegionLoader, RegionFileLoader, RCoord};
 use itertools::iproduct;
 use rayon::prelude::*;
@@ -8,11 +7,11 @@ use std::io::prelude::Write;
 use std::time::Instant;
 
 fn main() {
-    let matches = App::new("Region scanner")
+    let matches = Command::new("Region scanner")
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::with_name("path")
+        .arg(Arg::new("path")
             .long("path")
             .value_name("FOLDER")
             .help(r"The absolute path to the save folder of the world in question.
@@ -21,7 +20,7 @@ fn main() {
             .takes_value(true)
             .required(true)
         ) 
-        .arg(Arg::with_name("dims")
+        .arg(Arg::new("dims")
             .long("dims")
             .value_name("DIMENSION_ID")
             .help("The dimension ID in the new format.
@@ -30,7 +29,7 @@ fn main() {
             .required(true)
             .min_values(1)
         )
-        .arg(Arg::with_name("zone")
+        .arg(Arg::new("zone")
             .long("zone")
             .value_name("ZONE")
             .help("The zone to scan in every dimension, in regions, in the format of 'from_x,to_x,from_z,to_z'.
@@ -38,7 +37,7 @@ fn main() {
             .takes_value(true)
             .required(true)
             .number_of_values(4)
-            .value_delimiter(",")
+            .value_delimiter(',')
             .allow_hyphen_values(true)
         )
         .get_matches();
@@ -129,11 +128,11 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         .par_iter()
         .map(|(reg_x, reg_z)| {
             let s = regionfolder.clone();
-            let regions = RegionFileLoader::<JavaChunk>::new(s);
+            let regions = RegionFileLoader::new(s);
             match regions.region(RCoord(*reg_x ), RCoord(*reg_z )) {
-                Some(region) => {
+                Some(mut region) => {
                     println!("Processing region ({},{}).", reg_x, reg_z);
-                    (RegionResult::Ok(count_frequencies(&*region, verbose,dimension)), 1)
+                    (RegionResult::Ok(count_frequencies(&mut region, verbose,dimension)), 1)
                 }
                 None => {println!("Region ({},{}) not found.", reg_x, reg_z);(RegionResult::Ignore, 0)},
             }

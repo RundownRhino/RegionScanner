@@ -1,14 +1,15 @@
 use fastanvil::pre18::JavaChunk;
-use fastanvil::{CCoord, Chunk, Region};
+use fastanvil::{Chunk, Region};
 
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fs::File;
 use std::ops::{Add, Mul};
 use std::path::{Path, PathBuf};
 
-pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &str) -> BlockCounts {
+pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
     let mut blocks_counted: u64 = 0;
     let mut counts: HashMap<String, Vec<u64>> = HashMap::new();
@@ -36,7 +37,12 @@ pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &s
     };
     for x in 0..32 {
         for z in 0..32 {
-            if let Some(c) = region.chunk(CCoord(x), CCoord(z)) {
+            if let Some(c) = region
+                .read_chunk(x, z)
+                .unwrap()
+                // This silently skips chunks that fail to deserialise to a pre_18::JavaChunk
+                .and_then(|data| fastnbt::from_bytes(&data).ok())
+            {
                 closure(x as usize, z as usize, c);
             }
         }
@@ -74,7 +80,7 @@ impl BlockFrequencies {
     }
 }
 pub fn count_frequencies(
-    region: &dyn Region<JavaChunk>,
+    region: &mut Region<File>,
     verbose: bool,
     dimension: &str,
 ) -> BlockFrequencies {
