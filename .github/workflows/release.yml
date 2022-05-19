@@ -5,8 +5,8 @@ name: release
 on:
   push:
     # Enable when testing release infrastructure on a branch.
-    branches:
-    - ga-release-test
+#     branches:
+#     - ga-release-test
     tags:
     - "[0-9]+.[0-9]+.[0-9]+"
 jobs:
@@ -58,23 +58,23 @@ jobs:
         include:
         - build: linux
           os: ubuntu-18.04
-          rust: nightly
+          rust: stable
           target: x86_64-unknown-linux-musl
         - build: macos
           os: macos-latest
-          rust: nightly
+          rust: stable
           target: x86_64-apple-darwin
         - build: win-msvc
           os: windows-2019
-          rust: nightly
+          rust: stable
           target: x86_64-pc-windows-msvc
         - build: win-gnu
           os: windows-2019
-          rust: nightly-x86_64-gnu
+          rust: stable-x86_64-gnu
           target: x86_64-pc-windows-gnu
         - build: win32-msvc
           os: windows-2019
-          rust: nightly
+          rust: stable
           target: i686-pc-windows-msvc
 
     steps:
@@ -120,7 +120,6 @@ jobs:
       shell: bash
       run: |
         staging="region_scanner-${{ needs.create-release.outputs.rs_version }}-${{ matrix.target }}"
-        mkdir -p "$staging"/{complete}
         cp {README.md,LICENSE} "$staging/"
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
           cp "target/${{ matrix.target }}/release/region_scanner.exe" "$staging/"
