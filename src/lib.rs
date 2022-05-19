@@ -1,21 +1,15 @@
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn it_works() {
-//         assert_eq!(2 + 2, 4);
-//     }
-// }
-use fastanvil::pre18::JavaChunk;
-use fastanvil::{CCoord, Chunk, Region};
+use fastanvil::JavaChunk;
+use fastanvil::{Chunk, Region};
 
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fs::File;
 use std::ops::{Add, Mul};
 use std::path::{Path, PathBuf};
 
-pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &str) -> BlockCounts {
+pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
     let mut blocks_counted: u64 = 0;
     let mut counts: HashMap<String, Vec<u64>> = HashMap::new();
@@ -43,14 +37,18 @@ pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &s
     };
     for x in 0..32 {
         for z in 0..32 {
-            if let Some(c) = region.chunk(CCoord(x), CCoord(z)) {
+            if let Some(c) = region
+                .read_chunk(x, z)
+                .unwrap()
+                // This silently skips chunks that fail to deserialise.
+                .and_then(|data| JavaChunk::from_bytes(&data).ok())
+            {
                 closure(x as usize, z as usize, c);
             }
         }
     }
     BlockCounts {
         counts,
-        //elapsed_time,
         blocks_counted,
         chunks_counted,
         dimension: dimension.to_string(),
@@ -59,14 +57,12 @@ pub fn count_blocks(region: &dyn Region<JavaChunk>, verbose: bool, dimension: &s
 
 pub struct BlockCounts {
     pub counts: HashMap<String, Vec<u64>>,
-    //pub elapsed_time: f32,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub dimension: String,
 }
 pub struct BlockFrequencies {
     pub frequencies: HashMap<String, Vec<f64>>,
-    //pub elapsed_time: f32,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub area: u64,
@@ -76,7 +72,6 @@ impl BlockFrequencies {
     pub fn empty(dimension: String) -> BlockFrequencies {
         BlockFrequencies {
             frequencies: HashMap::new(),
-            //elapsed_time: 0.0,
             blocks_counted: 0,
             chunks_counted: 0,
             area: 0,
@@ -85,7 +80,7 @@ impl BlockFrequencies {
     }
 }
 pub fn count_frequencies(
-    region: &dyn Region<JavaChunk>,
+    region: &mut Region<File>,
     verbose: bool,
     dimension: &str,
 ) -> BlockFrequencies {
@@ -98,7 +93,6 @@ pub fn count_frequencies(
     }
     BlockFrequencies {
         frequencies,
-        //elapsed_time: counting_results.elapsed_time,
         blocks_counted: counting_results.blocks_counted,
         chunks_counted: counting_results.chunks_counted,
         area,
@@ -120,12 +114,11 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
         }
     }
     main.area += other.area;
-    //main.elapsed_time += other.elapsed_time;
     main.blocks_counted += other.blocks_counted;
     main.chunks_counted += other.chunks_counted;
 }
 pub fn vector_add_weighted<T: Add<T, Output = T> + Mul<f64, Output = T> + Copy>(
-    a: &mut Vec<T>,
+    a: &mut [T],
     b: &[T],
     a_weight: f64,
 ) {
@@ -192,16 +185,37 @@ pub fn get_path_from_dimension(dimension: &str) -> Option<PathBuf> {
 
 #[test]
 fn test_dim_to_path_conversions() {
-    for s in &[
-        "minecraft:overworld",
-        "minecraft:the_end",
-        "minecraft:the_nether",
-        "appliedenergistics2:spatial_storage",
-    ] {
-        println!(
-            "{} : {}",
-            s,
-            get_path_from_dimension(s).unwrap().to_str().unwrap()
+    let correct_results = [
+        ("minecraft:overworld", "region"),
+        ("minecraft:the_end", "DIM1/region"),
+        ("minecraft:the_nether", "DIM-1/region"),
+        (
+            "appliedenergistics2:spatial_storage",
+            r"dimensions/appliedenergistics2\spatial_storage\region",
+        ),
+    ];
+    let mut wrong = vec![];
+    for (inp, out) in correct_results {
+        let generated = get_path_from_dimension(inp).map(|x| x.to_str().unwrap().to_owned());
+
+        if generated.is_none() || generated.as_ref().unwrap() != out {
+            wrong.push((inp, out, generated));
+        }
+    }
+    if !wrong.is_empty() {
+        let mut panic_str = format!(
+            "Of {} conversion tests, {} failed:",
+            correct_results.len(),
+            wrong.len()
         );
+        for (inp, out, generated) in wrong {
+            panic_str.push_str(&format!(
+                "\nInput: '{}', expected: '{}', got: '{}'",
+                inp,
+                generated.unwrap_or_else(|| "<invalid input>".to_string()),
+                out
+            ));
+        }
+        panic!("{}", panic_str);
     }
 }
