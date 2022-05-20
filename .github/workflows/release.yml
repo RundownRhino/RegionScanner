@@ -4,12 +4,8 @@
 name: release
 on:
   push:
-    # Enable when testing release infrastructure on a branch.
-#     branches:
-#     - ga-release-test
     tags:
     - "v[0-9]+.*"
-  workflow_dispatch:
 
 jobs:
   create-release:
@@ -125,6 +121,7 @@ jobs:
       shell: bash
       run: |
         staging="region_scanner-${{ needs.create-release.outputs.rs_version }}-${{ matrix.target }}"
+        mkdir -p "$staging"
         cp {README.md,LICENSE} "$staging/"
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
           cp "target/${{ matrix.target }}/release/region_scanner.exe" "$staging/"
