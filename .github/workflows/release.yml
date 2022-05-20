@@ -29,8 +29,10 @@ jobs:
           # Apparently, this is the right way to get a tag name. Really?
           #
           # See: https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/m-p/32167/highlight/true#M1027
-          echo "RS_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          # echo "RS_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo echo ::set-output name=RS_VERSION::${GITHUB_REF#refs/tags/}
           echo "version is: ${{ env.RS_VERSION }}"
+          
       - name: Create GitHub release
         id: release
         uses: actions/create-release@v1
