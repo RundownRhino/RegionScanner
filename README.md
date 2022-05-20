@@ -1,6 +1,11 @@
 # RegionScanner
 A CLI program to scan Minecraft region files and create Just Enough Resources world-gen.json files from the results. Tested and works on 1.13-1.18 inclusive, but not 1.12 and older.
 
+# Installation
+The repo automatically builds binaries for multiple different targets via Github Actions, so unless you're using an obscure platform, you should be able to just grab a build for yours from [Releases](https://github.com/RundownRhino/RegionScanner/releases/latest). Extract the executable from the archive and use.
+
+If you're on Windows and not sure which to pick, you most likely want `x86_64-pc-windows-msvc`. If you're on a *32bit* Windows, `i686-pc-windows-msvc`.
+
 # Usage:
 `region_scanner --dims <DIMENSION_ID> --path <FOLDER> --zone <ZONE>`.
 
