@@ -1,18 +1,18 @@
 use fastanvil::JavaChunk;
 use fastanvil::{Chunk, Region};
+use std::collections::HashSet;
 
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs::File;
-use std::ops::{Add, Mul};
 use std::path::{Path, PathBuf};
 
 pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
     let mut blocks_counted: u64 = 0;
-    let mut counts: HashMap<String, Vec<u64>> = HashMap::new();
+    let mut counts: HashMap<String, HashMap<isize, u64>> = HashMap::new();
     let mut closure = |xpos: usize, zpos: usize, chunk_processed: JavaChunk| {
         if verbose && chunks_counted % 100 == 0 {
             println!(
@@ -22,29 +22,27 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
                 zpos
             );
         }
-        for y in 0..256 {
-            for (x, z) in iproduct!(0..16, 0..16) {
-                let block = chunk_processed.block(x, y, z);
-                if let Some(a) = block {
-                    counts
-                        .entry(a.name().to_string())
-                        .or_insert_with(|| vec![0; 256])[y as usize] += 1;
-                }
-                blocks_counted += 1;
+        for (x, y, z) in iproduct!(0..16, chunk_processed.y_range(), 0..16) {
+            if let Some(block) = chunk_processed.block(x, y, z) {
+                let block_entry = counts.entry(block.name().to_string());
+                let count_entry = block_entry
+                    .or_insert_with(|| HashMap::new())
+                    .entry(y)
+                    .or_insert(0);
+                *count_entry += 1;
             }
+            blocks_counted += 1;
         }
         chunks_counted += 1;
     };
-    for x in 0..32 {
-        for z in 0..32 {
-            if let Some(c) = region
-                .read_chunk(x, z)
-                .unwrap()
-                // This silently skips chunks that fail to deserialise.
-                .and_then(|data| JavaChunk::from_bytes(&data).ok())
-            {
-                closure(x as usize, z as usize, c);
-            }
+    for (x, z) in iproduct!(0..32, 0..32) {
+        if let Some(c) = region
+            .read_chunk(x, z)
+            .unwrap()
+            // This silently skips chunks that fail to deserialise.
+            .and_then(|data| JavaChunk::from_bytes(&data).ok())
+        {
+            closure(x as usize, z as usize, c);
         }
     }
     BlockCounts {
@@ -56,13 +54,13 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
 }
 
 pub struct BlockCounts {
-    pub counts: HashMap<String, Vec<u64>>,
+    pub counts: HashMap<String, HashMap<isize, u64>>,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub dimension: String,
 }
 pub struct BlockFrequencies {
-    pub frequencies: HashMap<String, Vec<f64>>,
+    pub frequencies: HashMap<String, HashMap<isize, f64>>,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
     pub area: u64,
@@ -86,10 +84,15 @@ pub fn count_frequencies(
 ) -> BlockFrequencies {
     let counting_results = count_blocks(region, verbose, dimension);
     let area: u64 = (16 * 16) * counting_results.chunks_counted as u64;
-    let mut frequencies: HashMap<String, Vec<f64>> = HashMap::new();
+    let mut frequencies: HashMap<String, HashMap<isize, f64>> = HashMap::new();
     let d_area = area as f64;
     for (name, nums) in counting_results.counts {
-        frequencies.insert(name, nums.iter().map(|&x| x as f64 / d_area).collect());
+        frequencies.insert(
+            name,
+            nums.iter()
+                .map(|(&y, &count)| (y, count as f64 / d_area))
+                .collect(),
+        );
     }
     BlockFrequencies {
         frequencies,
@@ -117,17 +120,20 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
     main.blocks_counted += other.blocks_counted;
     main.chunks_counted += other.chunks_counted;
 }
-pub fn vector_add_weighted<T: Add<T, Output = T> + Mul<f64, Output = T> + Copy>(
-    a: &mut [T],
-    b: &[T],
+pub fn vector_add_weighted(
+    a: &mut HashMap<isize, f64>,
+    b: &HashMap<isize, f64>,
     a_weight: f64,
 ) {
     if !(0.0..=1.0).contains(&a_weight) {
         panic!("Weight is not in the [0,1] range!");
     }
     let b_weight = 1.0 - a_weight;
-    for (first, second) in a.iter_mut().zip(b) {
-        *first = *first * a_weight + *second * b_weight;
+    let keys: HashSet<isize> = a.keys().chain(b.keys()).cloned().collect();
+    for key in keys {
+        let a_val = *a.get(&key).unwrap_or(&0.0) * a_weight;
+        let b_val = *b.get(&key).unwrap_or(&0.0) * b_weight;
+        a.insert(key, a_val + b_val);
     }
 }
 #[allow(non_snake_case)]
@@ -145,11 +151,10 @@ pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serd
     }
     serde_json::to_string_pretty(&distrib_list)
 }
-fn freqs_to_distrib(freqs: &[f64]) -> String {
+fn freqs_to_distrib(freqs: &HashMap<isize, f64>) -> String {
     let mut distrib = String::new();
     freqs
         .iter()
-        .enumerate()
         .map(|(y, value)| format!("{},{};", y, value))
         .for_each(|x| distrib.push_str(&x));
     distrib
