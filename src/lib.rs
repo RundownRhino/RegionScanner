@@ -26,7 +26,7 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
             if let Some(block) = chunk_processed.block(x, y, z) {
                 let block_entry = counts.entry(block.name().to_string());
                 let count_entry = block_entry
-                    .or_insert_with(|| HashMap::new())
+                    .or_insert_with(HashMap::new)
                     .entry(y)
                     .or_insert(0);
                 *count_entry += 1;
