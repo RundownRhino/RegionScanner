@@ -240,8 +240,10 @@ fn print_results(result: &BlockFrequencies) {
         .expect("The result was empty!");
     for (name, nums) in &result.frequencies {
         if name.contains("ore") {
-            let total: f64 = nums.iter().sum();
-            let average = total / 256.0;
+            let min_y = *nums.keys().min().unwrap_or(&0) as f64;
+            let max_y = *nums.keys().max().unwrap_or(&256) as f64;
+            let total: f64 = nums.values().sum();
+            let average = total / (max_y - min_y);
             println!(
                 "{:<width$}: {:>7.4}% ({:>9.3} per chunk)",
                 name,
