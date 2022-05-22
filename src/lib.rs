@@ -109,7 +109,7 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
             Entry::Occupied(mut a) => {
                 let total_area: f64 = (main.area + other.area) as f64;
                 let alpha: f64 = main.area as f64 / total_area;
-                vector_add_weighted(a.get_mut(), &freq, alpha);
+                counts_add_weighted(a.get_mut(), &freq, alpha);
             }
             Entry::Vacant(a) => {
                 a.insert(freq);
@@ -120,11 +120,7 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
     main.blocks_counted += other.blocks_counted;
     main.chunks_counted += other.chunks_counted;
 }
-pub fn vector_add_weighted(
-    a: &mut HashMap<isize, f64>,
-    b: &HashMap<isize, f64>,
-    a_weight: f64,
-) {
+pub fn counts_add_weighted(a: &mut HashMap<isize, f64>, b: &HashMap<isize, f64>, a_weight: f64) {
     if !(0.0..=1.0).contains(&a_weight) {
         panic!("Weight is not in the [0,1] range!");
     }
