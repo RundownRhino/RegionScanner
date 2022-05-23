@@ -137,6 +137,9 @@ pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serd
     let mut distrib_list: Vec<BlockJERDistributionData> = vec![];
     for freq_data in freq_datas {
         for (name, freqs) in &freq_data.frequencies {
+            if freqs.is_empty() {
+                continue;
+            }
             distrib_list.push(BlockJERDistributionData {
                 block: name.clone(),
                 distrib: freqs_to_distrib(freqs),
@@ -148,9 +151,15 @@ pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serd
     serde_json::to_string_pretty(&distrib_list)
 }
 fn freqs_to_distrib(freqs: &HashMap<isize, f64>) -> String {
+    if freqs.is_empty() {
+        panic!("Got an empty distribution!");
+    }
     let mut distrib = String::new();
-    freqs
-        .iter()
+    let min_y = *freqs.keys().min().unwrap();
+    let max_y = *freqs.keys().max().unwrap();
+    // FIXME
+    (min_y..=max_y)
+        .map(|y| (y, *freqs.get(&y).unwrap_or(&0f64)))
         .map(|(y, value)| format!("{},{};", y, value))
         .for_each(|x| distrib.push_str(&x));
     distrib
