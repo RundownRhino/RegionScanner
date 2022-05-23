@@ -1,5 +1,5 @@
-use fastanvil::JavaChunk;
-use fastanvil::{Chunk, Region};
+use fastanvil::{Chunk, RCoord, Region, RegionLoader};
+use fastanvil::{JavaChunk, RegionFileLoader};
 use std::collections::HashSet;
 
 use itertools::iproduct;
@@ -8,6 +8,10 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+
+pub fn chunks(region: &mut Region<File>) -> impl Iterator<Item = Option<Vec<u8>>> + '_ {
+    iproduct!(0..32, 0..32).map(|(chunk_x, chunk_z)| region.read_chunk(chunk_x, chunk_z).unwrap())
+}
 
 pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
@@ -77,6 +81,47 @@ impl BlockFrequencies {
         }
     }
 }
+#[derive(Copy, Clone)]
+pub struct Zone(pub isize, pub isize, pub isize, pub isize);
+impl From<Vec<isize>> for Zone {
+    fn from(vec: Vec<isize>) -> Self {
+        if vec.len() < 4 {
+            panic!("Vector too small to convert to a Zone:{:?}", vec);
+        }
+        Zone(
+            *vec.get(0).unwrap(),
+            *vec.get(1).unwrap(),
+            *vec.get(2).unwrap(),
+            *vec.get(3).unwrap(),
+        )
+    }
+}
+#[derive(Clone, Copy, Debug)]
+pub enum RegionVersion {
+    Pre118,
+    AtLeast118,
+}
+/// Determines the version of a world by checking the first nonempty region it finds in the zone provided.
+pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVersion {
+    use fastanvil::JavaChunk as JavaChunkEnum;
+    for mut region in iproduct!(zone.0..zone.1, zone.2..zone.3)
+        .filter_map(|(reg_x, reg_z)| regions.region(RCoord(reg_x), RCoord(reg_z)))
+    {
+        if let Some(c) = chunks(&mut region)
+            .find_map(|data| data.and_then(|x| JavaChunkEnum::from_bytes(&x).ok()))
+        {
+            return match c {
+                JavaChunkEnum::Post18(_) => RegionVersion::AtLeast118,
+                JavaChunkEnum::Pre18(_) => RegionVersion::Pre118,
+            };
+        }
+    }
+    panic!(
+        "Was unable to find a single chunk in a single region in the zone provided that was \
+         readable!"
+    );
+}
+
 pub fn count_frequencies(
     region: &mut Region<File>,
     verbose: bool,
@@ -133,16 +178,18 @@ pub fn counts_add_weighted(a: &mut HashMap<isize, f64>, b: &HashMap<isize, f64>,
     }
 }
 #[allow(non_snake_case)]
-pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serde_json::Error> {
+pub fn generate_JER_json(
+    frequency_data: &[(BlockFrequencies, RegionVersion)],
+) -> Result<String, serde_json::Error> {
     let mut distrib_list: Vec<BlockJERDistributionData> = vec![];
-    for freq_data in freq_datas {
+    for (freq_data, version) in frequency_data {
         for (name, freqs) in &freq_data.frequencies {
             if freqs.is_empty() {
                 continue;
             }
             distrib_list.push(BlockJERDistributionData {
                 block: name.clone(),
-                distrib: freqs_to_distrib(freqs),
+                distrib: freqs_to_distrib(freqs, *version),
                 silktouch: false,
                 dim: freq_data.dimension.clone().to_string(),
             });
@@ -150,16 +197,22 @@ pub fn generate_JER_json(freq_datas: &[BlockFrequencies]) -> Result<String, serd
     }
     serde_json::to_string_pretty(&distrib_list)
 }
-fn freqs_to_distrib(freqs: &HashMap<isize, f64>) -> String {
+fn freqs_to_distrib(freqs: &HashMap<isize, f64>, version: RegionVersion) -> String {
     if freqs.is_empty() {
         panic!("Got an empty distribution!");
     }
     let mut distrib = String::new();
     let min_y = *freqs.keys().min().unwrap();
     let max_y = *freqs.keys().max().unwrap();
-    // FIXME
     (min_y..=max_y)
-        .map(|y| (y, *freqs.get(&y).unwrap_or(&0f64)))
+        .map(|y| {
+            // JER for 1.18 stores the levels with an offset of 64, so levels go from 0 inclusive to 320 exclusive. 
+            let offset = match version {
+                RegionVersion::Pre118 => 0,
+                RegionVersion::AtLeast118 => 64,
+            };
+            ((y + offset) as u16, *freqs.get(&y).unwrap_or(&0f64))
+        })
         .map(|(y, value)| format!("{},{};", y, value))
         .for_each(|x| distrib.push_str(&x));
     distrib

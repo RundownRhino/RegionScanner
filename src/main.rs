@@ -79,8 +79,8 @@ fn main() {
             }
         };
     }
-    let freqs_by_dim = scan_multiple(&paths_to_scan, zone);
-    let json_string = generate_JER_json(&freqs_by_dim).unwrap();
+    let results_by_dim = scan_multiple(&paths_to_scan, zone);
+    let json_string = generate_JER_json(&results_by_dim).unwrap();
     let path = std::path::Path::new("output/world-gen.json");
     let prefix = path.parent().unwrap();
     std::fs::create_dir_all(prefix).unwrap();
@@ -94,8 +94,11 @@ fn main() {
         .unwrap();
 }
 
-fn scan_multiple(dim_paths: &[(&str, std::path::PathBuf)], zone: Zone) -> Vec<BlockFrequencies> {
-    let mut freqs_by_dim = vec![];
+fn scan_multiple(
+    dim_paths: &[(&str, std::path::PathBuf)],
+    zone: Zone,
+) -> Vec<(BlockFrequencies, RegionVersion)> {
+    let mut results_by_dim = vec![];
     for (dim, path) in dim_paths {
         println!(
             "\nStarting to scan dimension: {}, at {}.",
@@ -103,7 +106,7 @@ fn scan_multiple(dim_paths: &[(&str, std::path::PathBuf)], zone: Zone) -> Vec<Bl
             path.to_string_lossy()
         );
         match process_zone_in_folder(path, zone, dim) {
-            DimensionScanResult::Ok(freqs) => freqs_by_dim.push(freqs),
+            DimensionScanResult::Ok(res) => results_by_dim.push(res),
             DimensionScanResult::NoRegionsPresent => {
                 println!(
                     "{}: no regions were found in dimension {} located at '{}'. The zone \
@@ -126,25 +129,10 @@ fn scan_multiple(dim_paths: &[(&str, std::path::PathBuf)], zone: Zone) -> Vec<Bl
             }
         }
     }
-    freqs_by_dim
-}
-#[derive(Copy, Clone)]
-struct Zone(isize, isize, isize, isize);
-impl From<Vec<isize>> for Zone {
-    fn from(vec: Vec<isize>) -> Self {
-        if vec.len() < 4 {
-            panic!("Vector too small to convert to a Zone:{:?}", vec);
-        }
-        Zone(
-            *vec.get(0).unwrap(),
-            *vec.get(1).unwrap(),
-            *vec.get(2).unwrap(),
-            *vec.get(3).unwrap(),
-        )
-    }
+    results_by_dim
 }
 enum DimensionScanResult {
-    Ok(BlockFrequencies),
+    Ok((BlockFrequencies, RegionVersion)),
     NoRegionsPresent,
     NoChunksFound,
 }
@@ -158,13 +146,24 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     let indexes: Vec<(isize, isize)> = iproduct!(zone.0..zone.1, zone.2..zone.3).collect();
     let start = Instant::now();
     let verbose = false;
+    // RegionFileLoader takes specifically a PathBuf, so we have to clone this one for each thread.
     let regionfolder: std::path::PathBuf = std::path::PathBuf::from(path.as_ref());
+    let version = determine_version(&mut RegionFileLoader::new(regionfolder.clone()), zone);
+    println!(
+        "World version detected as {}.",
+        if matches!(version, RegionVersion::AtLeast118) {
+            "at least 1.18"
+        } else {
+            "pre-1.18"
+        }
+    );
 
     let (total_freqs, valid_regions) = indexes
         .par_iter()
         .map(|(reg_x, reg_z)| {
             let s = regionfolder.clone();
             let regions = RegionFileLoader::new(s);
+
             match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
                 Some(mut region) => {
                     println!("Processing region ({},{}).", reg_x, reg_z);
@@ -222,7 +221,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     if total_freqs.chunks_counted == 0 {
         return DimensionScanResult::NoChunksFound;
     }
-    DimensionScanResult::Ok(total_freqs)
+    DimensionScanResult::Ok((total_freqs, version))
 }
 
 enum RegionResult {
