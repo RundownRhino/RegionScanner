@@ -456,7 +456,6 @@ dependencies = [
  "clap",
  "colored",
  "fastanvil",
- "fastnbt",
  "indoc",
  "itertools",
  "rayon",
