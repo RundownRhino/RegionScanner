@@ -1,3 +1,5 @@
+use std::{io::prelude::Write, time::Instant};
+
 use clap::{crate_authors, crate_description, crate_version, Arg, Command};
 use colored::*;
 use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
@@ -5,8 +7,6 @@ use indoc::indoc;
 use itertools::iproduct;
 use rayon::prelude::*;
 use region_scanner::*;
-use std::io::prelude::Write;
-use std::time::Instant;
 
 fn main() {
     let matches = Command::new("Region scanner")
@@ -46,8 +46,8 @@ fn main() {
             .allow_hyphen_values(true)
         )
         .get_matches();
-    //println!("{:?}", matches);
-    //panic!();
+    // println!("{:?}", matches);
+    // panic!();
     let save_str = matches.value_of("path").unwrap();
     let dims_to_scan: Vec<&str> = matches.values_of("dims").unwrap().collect();
     if !std::path::Path::new(save_str).exists() {
@@ -146,7 +146,8 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     let indexes: Vec<(isize, isize)> = iproduct!(zone.0..zone.1, zone.2..zone.3).collect();
     let start = Instant::now();
     let verbose = false;
-    // RegionFileLoader takes specifically a PathBuf, so we have to clone this one for each thread.
+    // RegionFileLoader takes specifically a PathBuf, so we have to clone this one
+    // for each thread.
     let regionfolder: std::path::PathBuf = std::path::PathBuf::from(path.as_ref());
     let version = determine_version(&mut RegionFileLoader::new(regionfolder.clone()), zone);
     println!(
@@ -198,7 +199,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         RegionResult::Ignore => return DimensionScanResult::NoRegionsPresent,
     };
     let elapsed_time = start.elapsed().as_secs_f32();
-    //print_results(&total_freqs);
+    // print_results(&total_freqs);
     println!(
         "Tried to scan {} regions. Succeeded in scanning {}.",
         regions_num, valid_regions

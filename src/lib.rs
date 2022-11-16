@@ -1,13 +1,12 @@
-use fastanvil::{Chunk, RCoord, Region, RegionLoader};
-use fastanvil::{JavaChunk, RegionFileLoader};
-use std::collections::HashSet;
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    fs::File,
+    path::{Path, PathBuf},
+};
 
+use fastanvil::{Chunk, JavaChunk, RCoord, Region, RegionFileLoader, RegionLoader};
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::fs::File;
-use std::path::{Path, PathBuf};
 
 pub fn chunks(region: &mut Region<File>) -> impl Iterator<Item = Option<Vec<u8>>> + '_ {
     iproduct!(0..32, 0..32).map(|(chunk_x, chunk_z)| region.read_chunk(chunk_x, chunk_z).unwrap())
@@ -88,12 +87,7 @@ impl From<Vec<isize>> for Zone {
         if vec.len() < 4 {
             panic!("Vector too small to convert to a Zone:{:?}", vec);
         }
-        Zone(
-            *vec.get(0).unwrap(),
-            *vec.get(1).unwrap(),
-            *vec.get(2).unwrap(),
-            *vec.get(3).unwrap(),
-        )
+        Zone(vec[0], vec[1], vec[2], vec[3])
     }
 }
 #[derive(Clone, Copy, Debug)]
@@ -101,7 +95,8 @@ pub enum RegionVersion {
     Pre118,
     AtLeast118,
 }
-/// Determines the version of a world by checking the first nonempty region it finds in the zone provided.
+/// Determines the version of a world by checking the first nonempty region it
+/// finds in the zone provided.
 pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVersion {
     use fastanvil::JavaChunk as JavaChunkEnum;
     for mut region in iproduct!(zone.0..zone.1, zone.2..zone.3)
@@ -206,7 +201,8 @@ fn freqs_to_distrib(freqs: &HashMap<isize, f64>, version: RegionVersion) -> Stri
     let max_y = *freqs.keys().max().unwrap();
     (min_y..=max_y)
         .map(|y| {
-            // JER for 1.18 stores the levels with an offset of 64, so levels go from 0 inclusive to 320 exclusive. 
+            // JER for 1.18 stores the levels with an offset of 64, so levels go from 0
+            // inclusive to 320 exclusive.
             let offset = match version {
                 RegionVersion::Pre118 => 0,
                 RegionVersion::AtLeast118 => 64,
@@ -238,8 +234,8 @@ pub fn get_path_from_dimension(dimension: &str) -> Option<PathBuf> {
             None
         } else {
             let mut result = PathBuf::from(r"dimensions/");
-            result.push(parts.get(0)?);
-            result.push(parts.get(1)?);
+            result.push(parts[0]);
+            result.push(parts[1]);
             result.push("region");
             Some(result)
         }
