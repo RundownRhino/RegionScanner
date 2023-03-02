@@ -45,7 +45,7 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
             // This silently skips chunks that fail to deserialise.
             .and_then(|data| JavaChunk::from_bytes(&data).ok())
         {
-            closure(x as usize, z as usize, c);
+            closure(x, z, c);
         }
     }
     BlockCounts {
