@@ -21,7 +21,7 @@ struct Args {
     /// 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
     #[arg(short, long, value_name = "FOLDER", value_hint=ValueHint::DirPath)]
     path: PathBuf,
-    /// The dimension ID in the new format.
+    /// The dimension IDs to scan in the new format.
     /// Examples: 'minecraft:overworld', 'minecraft:the_nether',
     /// 'minecraft:the_end', 'jamd:mining'.
     #[arg(
