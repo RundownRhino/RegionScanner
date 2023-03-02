@@ -162,9 +162,11 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
     main.chunks_counted += other.chunks_counted;
 }
 pub fn counts_add_weighted(a: &mut HashMap<isize, f64>, b: &HashMap<isize, f64>, a_weight: f64) {
-    if !(0.0..=1.0).contains(&a_weight) {
-        panic!("Weight is not in the [0,1] range!");
-    }
+    assert!(
+        (0.0..=1.0).contains(&a_weight),
+        "Weight is not in the [0,1] range!"
+    );
+
     let b_weight = 1.0 - a_weight;
     let keys: HashSet<isize> = a.keys().chain(b.keys()).cloned().collect();
     for key in keys {
@@ -220,9 +222,7 @@ pub fn generate_tall_csv(frequency_data: &[(BlockFrequencies, RegionVersion)]) -
 }
 
 fn freqs_to_distrib(freqs: &HashMap<isize, f64>, version: RegionVersion) -> String {
-    if freqs.is_empty() {
-        panic!("Got an empty distribution!");
-    }
+    assert!(!freqs.is_empty(), "Got an empty distribution!");
     let mut distrib = String::new();
     let min_y = *freqs.keys().min().unwrap();
     let max_y = *freqs.keys().max().unwrap();

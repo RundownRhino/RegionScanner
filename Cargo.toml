@@ -9,6 +9,7 @@ description = "A CLI program to scan Minecraft region files and create Just Enou
 
 [dependencies]
 clap = { version = "4.1.8", features = ["cargo", "derive"] }
+color-eyre = { version = "0.6.2", default-features = false }
 colored = "2.0.0"
 fastanvil = "0.26.0"
 indoc = "1.0.7"

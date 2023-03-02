@@ -1,6 +1,10 @@
 use std::{io::prelude::Write, path::PathBuf, time::Instant};
 
 use clap::{Parser, ValueEnum, ValueHint};
+use color_eyre::{
+    eyre::{bail, ensure},
+    Result,
+};
 use colored::*;
 use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
 use itertools::iproduct;
@@ -55,20 +59,20 @@ enum ExportFormat {
     TallCSV,
 }
 
-fn main() {
+fn main() -> Result<()> {
+    color_eyre::install()?;
     let args = Args::parse();
-    if !args.path.exists() {
-        panic!(
-            "It doesn't seem like the path `{}` exists!",
-            args.path.display()
-        );
-    }
-    if args.zone.len() != 4 {
-        panic!(
-            "Wrong number of zone values! Expected: 4, got : {}", // TODO: prettier error.
-            args.zone.len()
-        );
-    }
+    ensure!(
+        args.path.exists(),
+        "It doesn't seem like the path `{}` exists!",
+        args.path.display()
+    );
+    ensure!(
+        args.zone.len() == 4,
+        "Wrong number of zone values! Expected: 4, got: {}. See --help or examples on the repo \
+         for details.",
+        args.zone.len()
+    );
     let zone: Zone = Zone::from(args.zone);
 
     let mut paths_to_scan = vec![];
@@ -80,7 +84,7 @@ fn main() {
                 paths_to_scan.push((dimension.as_str(), full_path))
             }
             None => {
-                panic!("Wasn't able to parse dimension: {}", dimension);
+                bail!("Wasn't able to parse dimension: {}", dimension);
             }
         };
     }
@@ -107,6 +111,7 @@ fn main() {
         .unwrap()
         .write_all(data.as_bytes())
         .unwrap();
+    Ok(())
 }
 
 fn scan_multiple(
