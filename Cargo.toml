@@ -12,7 +12,6 @@ clap = { version = "4.1.8", features = ["cargo", "derive"] }
 color-eyre = { version = "0.6.2", default-features = false }
 colored = "2.0.0"
 fastanvil = "0.26.0"
-indoc = "1.0.7"
 itertools = "0.10.5"
 rayon = "1.5.3"
 serde = "1.0.147"
