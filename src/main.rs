@@ -1,88 +1,83 @@
-use std::{io::prelude::Write, time::Instant};
+use std::{io::prelude::Write, path::PathBuf, time::Instant};
 
-use clap::{crate_authors, crate_description, crate_version, Arg, Command};
+use clap::{Parser, ValueEnum, ValueHint};
 use colored::*;
 use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
-use indoc::indoc;
 use itertools::iproduct;
 use rayon::prelude::*;
 use region_scanner::*;
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// The absolute path to the save folder of the world in question.
+    /// This is the folder the 'region' folder is in.
+    /// Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20
+    /// 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
+    #[arg(short, long, value_name = "FOLDER", value_hint=ValueHint::DirPath)]
+    path: PathBuf,
+    /// The dimension ID in the new format.
+    /// Examples: 'minecraft:overworld', 'minecraft:the_nether',
+    /// 'minecraft:the_end', 'jamd:mining'.
+    #[arg(
+        short,
+        long,
+        required = true,
+        value_name = "DIMENSION_ID",
+        num_args = 1..
+    )]
+    dims: Vec<String>,
+    /// The zone to scan in every dimension, in regions, in the format of
+    /// 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
+    /// For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1),
+    /// (-1,0), (0,-1) and (0,0).
+    #[arg(
+        short,
+        long,
+        required = true,
+        value_names = ["FROM_X", "TO_X", "FROM_Z", "TO_Z"],
+        num_args = 1..=4, // necessary to make value_delimiter work here
+        value_delimiter = ',',
+        allow_hyphen_values = true
+    )]
+    zone: Vec<isize>,
+    /// The format to export to
+    #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
+    format: ExportFormat,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+enum ExportFormat {
+    /// world-gen.json compatible with Just Enough Resources
+    Jer,
+    /// world-gen.csv file in CSV format - a row per each level
+    /// and per each resource
+    TallCSV,
+}
+
 fn main() {
-    let matches = Command::new("Region scanner")
-        .version(crate_version!())
-        .author(crate_authors!())
-        .about(crate_description!())
-        .arg(Arg::new("path")
-            .long("path")
-            .value_name("FOLDER")
-            .help(indoc!(r"
-            The absolute path to the save folder of the world in question.
-            This is the folder the 'region' folder is in.
-            Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld'"))
-            .takes_value(true)
-            .required(true)
-        )
-        .arg(Arg::new("dims")
-            .long("dims")
-            .value_name("DIMENSION_ID")
-            .help(indoc!("
-            The dimension ID in the new format.
-            Examples: 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end','jamd:mining'."))
-            .takes_value(true)
-            .required(true)
-            .min_values(1)
-        )
-        .arg(Arg::new("zone")
-            .long("zone")
-            .value_names(&["FROM_X", "TO_X", "FROM_Z", "TO_Z"])
-            .help(indoc!("
-            The zone to scan in every dimension, in regions, in the format of 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
-            For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and (0,0)."))
-            .takes_value(true)
-            .required(true)
-            .number_of_values(4)
-            .value_delimiter(',')
-            .allow_hyphen_values(true)
-        )
-        // TODO: once I move this to clap v4's struct-based approach, this will be a enum
-        .arg(Arg::new("format")
-            .long("format")
-            .help("The format to export to")
-            .value_parser(["jer", "tall-csv"])
-            .default_value("jer")
-        )
-        .get_matches();
-    // println!("{:?}", matches);
-    // panic!();
-    let save_str = matches.value_of("path").unwrap();
-    let dims_to_scan: Vec<&str> = matches.values_of("dims").unwrap().collect();
-    if !std::path::Path::new(save_str).exists() {
-        panic!("It doesn't seem like the path {} exists!", save_str);
-    }
-    let save_path = std::path::PathBuf::from(save_str);
-    let zone_values: Vec<isize> = matches
-        .values_of("zone")
-        .unwrap()
-        .map(|s| s.parse().unwrap())
-        .collect();
-    if zone_values.len() != 4 {
+    let args = Args::parse();
+    if !args.path.exists() {
         panic!(
-            "Wrong number of zone values! Expected: 4, got : {}",
-            zone_values.len()
+            "It doesn't seem like the path `{}` exists!",
+            args.path.display()
         );
     }
-    let format = matches.get_one::<String>("color").unwrap().as_str();
-    assert!(["jer", "tall-csv"].contains(&format), "Unknown --format provided!");
+    if args.zone.len() != 4 {
+        panic!(
+            "Wrong number of zone values! Expected: 4, got : {}", // TODO: prettier error.
+            args.zone.len()
+        );
+    }
+    let zone: Zone = Zone::from(args.zone);
 
-    let zone: Zone = Zone::from(zone_values);
     let mut paths_to_scan = vec![];
-    for dimension in &dims_to_scan {
+    for dimension in &args.dims {
         match get_path_from_dimension(dimension) {
             Some(suffix) => {
-                let mut full_path = save_path.clone();
+                let mut full_path = args.path.clone();
                 full_path.push(suffix);
-                paths_to_scan.push((*dimension, full_path))
+                paths_to_scan.push((dimension.as_str(), full_path))
             }
             None => {
                 panic!("Wasn't able to parse dimension: {}", dimension);
