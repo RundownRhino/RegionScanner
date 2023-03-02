@@ -2,7 +2,7 @@ use std::{io::prelude::Write, path::PathBuf, time::Instant};
 
 use clap::{Parser, ValueEnum, ValueHint};
 use color_eyre::{
-    eyre::{bail, ensure},
+    eyre::{bail, ensure, Context},
     Result,
 };
 #[macro_use]
@@ -49,6 +49,10 @@ struct Args {
     /// The format to export to
     #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
     format: ExportFormat,
+    /// Number of worker threads to use for scanning dimensions. If
+    /// set to zero, will be chosen automatically by rayon.
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -97,6 +101,15 @@ fn main() -> Result<()> {
             }
         };
     }
+
+    if args.threads != 0 {
+        // Set rayon thread limit
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(args.threads)
+            .build_global()
+            .context("Unable to set thread count!")?;
+    }
+
     let results_by_dim = scan_multiple(&paths_to_scan, zone);
     let prefix = std::path::Path::new("output");
     std::fs::create_dir_all(prefix).unwrap();
