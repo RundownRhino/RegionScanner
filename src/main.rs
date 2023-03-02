@@ -45,6 +45,13 @@ fn main() {
             .value_delimiter(',')
             .allow_hyphen_values(true)
         )
+        // TODO: once I move this to clap v4's struct-based approach, this will be a enum
+        .arg(Arg::new("format")
+            .long("format")
+            .help("The format to export to")
+            .value_parser(["jer", "tall-csv"])
+            .default_value("jer")
+        )
         .get_matches();
     // println!("{:?}", matches);
     // panic!();
@@ -65,6 +72,9 @@ fn main() {
             zone_values.len()
         );
     }
+    let format = matches.get_one::<String>("color").unwrap().as_str();
+    assert!(["jer", "tall-csv"].contains(&format), "Unknown --format provided!");
+
     let zone: Zone = Zone::from(zone_values);
     let mut paths_to_scan = vec![];
     for dimension in &dims_to_scan {
