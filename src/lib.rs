@@ -100,8 +100,9 @@ pub enum RegionVersion {
 /// finds in the zone provided.
 pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVersion {
     use fastanvil::JavaChunk as JavaChunkEnum;
-    for mut region in iproduct!(zone.0..zone.1, zone.2..zone.3)
-        .filter_map(|(reg_x, reg_z)| regions.region(RCoord(reg_x), RCoord(reg_z)))
+    for mut region in iproduct!(zone.0..zone.1, zone.2..zone.3).filter_map(|(reg_x, reg_z)|
+        // This ignores regions that fail to load, which may or may not be a good idea
+        regions.region(RCoord(reg_x), RCoord(reg_z)).ok().flatten())
     {
         if let Some(c) = chunks(&mut region)
             .find_map(|data| data.and_then(|x| JavaChunkEnum::from_bytes(&x).ok()))
@@ -109,6 +110,7 @@ pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVe
             return match c {
                 JavaChunkEnum::Post18(_) => RegionVersion::AtLeast118,
                 JavaChunkEnum::Pre18(_) => RegionVersion::Pre118,
+                JavaChunkEnum::Pre13(_) => RegionVersion::Pre118,
             };
         }
     }

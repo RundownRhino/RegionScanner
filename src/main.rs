@@ -186,15 +186,22 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
             let regions = RegionFileLoader::new(s);
 
             match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
-                Some(mut region) => {
+                Ok(Some(mut region)) => {
                     println!("Processing region ({},{}).", reg_x, reg_z);
                     (
                         RegionResult::Ok(count_frequencies(&mut region, verbose, dimension)),
                         1,
                     )
                 }
-                None => {
+                Ok(None) => {
                     println!("Region ({},{}) not found.", reg_x, reg_z);
+                    (RegionResult::Ignore, 0)
+                }
+                Err(e) => {
+                    println!(
+                        "{}",
+                        format!("Region ({reg_x},{reg_z}) failed to load! Error: {e:?}.").red()
+                    );
                     (RegionResult::Ignore, 0)
                 }
             }
