@@ -5,7 +5,8 @@ use color_eyre::{
     eyre::{bail, ensure},
     Result,
 };
-use colored::*;
+#[macro_use]
+extern crate log;
 use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
 use itertools::iproduct;
 use rayon::prelude::*;
@@ -58,9 +59,17 @@ enum ExportFormat {
     /// and per each resource
     TallCSV,
 }
-
-fn main() -> Result<()> {
+fn init() -> Result<()> {
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+    pretty_env_logger::init();
     color_eyre::install()?;
+    Ok(())
+}
+fn main() -> Result<()> {
+    init()?;
+
     let args = Args::parse();
     ensure!(
         args.path.exists(),
@@ -120,29 +129,27 @@ fn scan_multiple(
 ) -> Vec<(BlockFrequencies, RegionVersion)> {
     let mut results_by_dim = vec![];
     for (dim, path) in dim_paths {
-        println!(
-            "\nStarting to scan dimension: {}, at {}.",
+        info!(
+            "Starting to scan dimension: {}, at {}.",
             dim,
             path.to_string_lossy()
         );
         match process_zone_in_folder(path, zone, dim) {
             DimensionScanResult::Ok(res) => results_by_dim.push(res),
             DimensionScanResult::NoRegionsPresent => {
-                println!(
-                    "{}: no regions were found in dimension {} located at '{}'. The zone \
-                     specified has no regions, or the dimension isn't generated at all.",
-                    "Warning".red(),
+                warn!(
+                    "No regions were found in dimension {} located at '{}'. The zone specified \
+                     has no regions, or the dimension isn't generated at all.",
                     dim,
                     path.display()
                 )
             }
             DimensionScanResult::NoChunksFound => {
-                println!(
-                    "{}: zero scannable chunks found in dimension {} located at '{}', despite \
-                     regions being found. This might be caused by the world being of a minecraft \
-                     version that's not supported, or it might be that the existing regions in \
-                     the zone are all chunkless.",
-                    "Warning".red(),
+                warn!(
+                    "Zero scannable chunks found in dimension {} located at '{}', despite regions \
+                     being found. This might be caused by the world being of a minecraft version \
+                     that's not supported, or it might be that the existing regions in the zone \
+                     are all chunkless.",
                     dim,
                     path.display()
                 )
@@ -170,7 +177,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     // for each thread.
     let regionfolder: std::path::PathBuf = std::path::PathBuf::from(path.as_ref());
     let version = determine_version(&mut RegionFileLoader::new(regionfolder.clone()), zone);
-    println!(
+    info!(
         "World version detected as {}.",
         if matches!(version, RegionVersion::AtLeast118) {
             "at least 1.18"
@@ -187,21 +194,18 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
 
             match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
                 Ok(Some(mut region)) => {
-                    println!("Processing region ({},{}).", reg_x, reg_z);
+                    info!("Processing region ({},{}).", reg_x, reg_z);
                     (
                         RegionResult::Ok(count_frequencies(&mut region, verbose, dimension)),
                         1,
                     )
                 }
                 Ok(None) => {
-                    println!("Region ({},{}) not found.", reg_x, reg_z);
+                    info!("Region ({},{}) not found.", reg_x, reg_z);
                     (RegionResult::Ignore, 0)
                 }
                 Err(e) => {
-                    println!(
-                        "{}",
-                        format!("Region ({reg_x},{reg_z}) failed to load! Error: {e:?}.").red()
-                    );
+                    warn!("Region ({reg_x},{reg_z}) failed to load! Error: {e:?}.");
                     (RegionResult::Ignore, 0)
                 }
             }
@@ -227,18 +231,18 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     };
     let elapsed_time = start.elapsed().as_secs_f32();
     // print_results(&total_freqs);
-    println!(
+    info!(
         "Tried to scan {} regions. Succeeded in scanning {}.",
         regions_num, valid_regions
     );
-    println!(
+    info!(
         "Nonempty chunks counted:{}, around {:.2}% of the zone specified.",
         total_freqs.chunks_counted,
         (total_freqs.chunks_counted as f64 / (regions_num * 1024) as f64) * 100.0
     );
-    println!("Area on each layer:{}", total_freqs.area);
-    println!("Blocks counted:{}", total_freqs.blocks_counted);
-    println!(
+    info!("Area on each layer:{}", total_freqs.area);
+    info!("Blocks counted:{}", total_freqs.blocks_counted);
+    info!(
         "Elapsed:{:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 \
          scanned chunks.",
         elapsed_time,
@@ -271,7 +275,7 @@ fn print_results(result: &BlockFrequencies) {
             let max_y = *nums.keys().max().unwrap_or(&256) as f64;
             let total: f64 = nums.values().sum();
             let average = total / (max_y - min_y);
-            println!(
+            info!(
                 "{:<width$}: {:>7.4}% ({:>9.3} per chunk)",
                 name,
                 average * 100.0,

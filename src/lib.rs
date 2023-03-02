@@ -4,7 +4,8 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-
+#[macro_use]
+extern crate log;
 use fastanvil::{Chunk, JavaChunk, RCoord, Region, RegionFileLoader, RegionLoader};
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
     let mut counts: HashMap<String, HashMap<isize, u64>> = HashMap::new();
     let mut closure = |xpos: usize, zpos: usize, chunk_processed: JavaChunk| {
         if verbose && chunks_counted % 100 == 0 {
-            println!(
+            info!(
                 "Handling chunk number {} at position ({},{})",
                 chunks_counted + 1,
                 xpos,
