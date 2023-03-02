@@ -15,7 +15,7 @@ use region_scanner::*;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// The absolute path to the save folder of the world in question.
+    /// The absolute path to the save folder of the world to scan.
     /// This is the folder the 'region' folder is in.
     /// Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20
     /// 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
@@ -80,6 +80,8 @@ fn main() -> Result<()> {
         "It doesn't seem like the path `{}` exists!",
         args.path.display()
     );
+    // Necessary check because this seems to not be possible to describe in clap v4
+    // - it used to be num_values.
     ensure!(
         args.zone.len() == 4,
         "Wrong number of zone values! Expected: 4, got: {}. See --help or examples on the repo \

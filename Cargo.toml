@@ -3,7 +3,7 @@ authors = ["RundownRhino <52856631+RundownRhino@users.noreply.github.com>"]
 edition = "2021"
 name = "region_scanner"
 version = "0.3.0"
-description = "A CLI program to scan Minecraft region files and create Just Enough Resources world-gen.json files from the results. Works on 1.13-1.18 (not older)."
+description = "A CLI program to scan Minecraft region files and create Just Enough Resources world-gen.json files from the results. Works on 1.13+. Some support for pre-1.13."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
