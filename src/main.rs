@@ -85,17 +85,27 @@ fn main() {
         };
     }
     let results_by_dim = scan_multiple(&paths_to_scan, zone);
-    let json_string = generate_JER_json(&results_by_dim).unwrap();
-    let path = std::path::Path::new("output/world-gen.json");
-    let prefix = path.parent().unwrap();
+    let prefix = std::path::Path::new("output");
     std::fs::create_dir_all(prefix).unwrap();
+    let (path, data) = match args.format {
+        ExportFormat::Jer => {
+            let json_string = generate_JER_json(&results_by_dim).unwrap();
+            let path = prefix.join("world-gen.json");
+            (path, json_string)
+        }
+        ExportFormat::TallCSV => {
+            let csv_string = generate_tall_csv(&results_by_dim);
+            let path = prefix.join("world-gen.csv");
+            (path, csv_string)
+        }
+    };
     std::fs::OpenOptions::new()
         .write(true)
         .truncate(true)
         .create(true)
         .open(path)
         .unwrap()
-        .write_all(json_string.as_bytes())
+        .write_all(data.as_bytes())
         .unwrap();
 }
 

@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
+    fmt::Write,
     fs::File,
     path::{Path, PathBuf},
 };
@@ -192,6 +193,32 @@ pub fn generate_JER_json(
     }
     serde_json::to_string_pretty(&distrib_list)
 }
+
+pub fn generate_tall_csv(frequency_data: &[(BlockFrequencies, RegionVersion)]) -> String {
+    let mut res = String::new();
+    res.write_str("dim,block,level,freq\n").unwrap();
+    for (freq_data, _version) in frequency_data {
+        for (name, freqs) in &freq_data.frequencies {
+            if freqs.is_empty() {
+                continue;
+            }
+            let min_y = *freqs.keys().min().unwrap();
+            let max_y = *freqs.keys().max().unwrap();
+            for y in min_y..=max_y {
+                res.write_str(&format!(
+                    "{},{},{},{}\n",
+                    freq_data.dimension,
+                    name,
+                    y,
+                    freqs.get(&y).unwrap_or(&0f64)
+                ))
+                .expect("Error when assembling CSV");
+            }
+        }
+    }
+    res
+}
+
 fn freqs_to_distrib(freqs: &HashMap<isize, f64>, version: RegionVersion) -> String {
     if freqs.is_empty() {
         panic!("Got an empty distribution!");
