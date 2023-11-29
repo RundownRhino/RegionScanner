@@ -11,7 +11,8 @@ use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 
 pub fn chunks(region: &mut Region<File>) -> impl Iterator<Item = Option<Vec<u8>>> + '_ {
-    iproduct!(0..32, 0..32).map(|(chunk_x, chunk_z)| region.read_chunk(chunk_x, chunk_z).unwrap())
+    // x should be the first-changing index - see header_pos in fastanvil
+    iproduct!(0..32, 0..32).map(|(chunk_z, chunk_x)| region.read_chunk(chunk_x, chunk_z).unwrap())
 }
 
 pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
