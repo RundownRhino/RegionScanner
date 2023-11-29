@@ -28,7 +28,9 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
                 zpos
             );
         }
-        for (x, y, z) in iproduct!(0..16, chunk_processed.y_range(), 0..16) {
+        // The block data is stored in sections by y, so we iterate by y least often.
+        // Inside a section, x is the fastest-changing index. Hence, order yzx.
+        for (y, z, x) in iproduct!(chunk_processed.y_range(), 0..16, 0..16) {
             if let Some(block) = chunk_processed.block(x, y, z) {
                 let block_entry = counts.entry(block.name().to_string());
                 let count_entry = block_entry.or_default().entry(y).or_insert(0);
