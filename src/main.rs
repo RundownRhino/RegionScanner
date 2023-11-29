@@ -96,7 +96,17 @@ fn main() -> Result<()> {
             Some(suffix) => {
                 let mut full_path = args.path.clone();
                 full_path.push(suffix);
-                paths_to_scan.push((dimension.as_str(), full_path))
+                paths_to_scan.push((dimension.as_str(), full_path.clone()));
+                if !full_path.exists() {
+                    bail!(
+                        "Dimension name `{}` resolved to path `{}`, but this path doesn't exist! \
+                         Perhaps you misspelled a dimension name (note in particular that that \
+                         the vanilla dimensions are spelled `the_nether` and `the_end`), or tried \
+                         to scan a dimension that wasn't generated yet for this world.",
+                        dimension,
+                        full_path.to_string_lossy()
+                    );
+                }
             }
             None => {
                 bail!("Wasn't able to parse dimension: {}", dimension);
