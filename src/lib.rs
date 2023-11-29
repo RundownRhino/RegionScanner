@@ -31,10 +31,7 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
         for (x, y, z) in iproduct!(0..16, chunk_processed.y_range(), 0..16) {
             if let Some(block) = chunk_processed.block(x, y, z) {
                 let block_entry = counts.entry(block.name().to_string());
-                let count_entry = block_entry
-                    .or_insert_with(HashMap::new)
-                    .entry(y)
-                    .or_insert(0);
+                let count_entry = block_entry.or_default().entry(y).or_insert(0);
                 *count_entry += 1;
             }
             blocks_counted += 1;
