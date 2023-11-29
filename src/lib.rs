@@ -1,19 +1,18 @@
+mod utils;
+
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     fmt::Write,
     fs::File,
     path::{Path, PathBuf},
 };
+
+use utils::*;
 #[macro_use]
 extern crate log;
 use fastanvil::{Chunk, JavaChunk, RCoord, Region, RegionFileLoader, RegionLoader};
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
-
-pub fn chunks(region: &mut Region<File>) -> impl Iterator<Item = Option<Vec<u8>>> + '_ {
-    // x should be the first-changing index - see header_pos in fastanvil
-    iproduct!(0..32, 0..32).map(|(chunk_z, chunk_x)| region.read_chunk(chunk_x, chunk_z).unwrap())
-}
 
 pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
     let mut chunks_counted: usize = 0;
@@ -40,14 +39,11 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
         }
         chunks_counted += 1;
     };
-    for (x, z) in iproduct!(0..32, 0..32) {
-        if let Some(c) = region
-            .read_chunk(x, z)
-            .unwrap()
-            // This silently skips chunks that fail to deserialise.
-            .and_then(|data| JavaChunk::from_bytes(&data).ok())
-        {
-            closure(x, z, c);
+
+    for data in chunks(region).flatten() {
+        // This silently skips chunks that fail to deserialise.
+        if let Ok(c) = JavaChunk::from_bytes(&data.data) {
+            closure(data.x, data.z, c);
         }
     }
     BlockCounts {
@@ -106,7 +102,7 @@ pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVe
         regions.region(RCoord(reg_x), RCoord(reg_z)).ok().flatten())
     {
         if let Some(c) = chunks(&mut region)
-            .find_map(|data| data.and_then(|x| JavaChunkEnum::from_bytes(&x).ok()))
+            .find_map(|data| data.and_then(|x| JavaChunkEnum::from_bytes(&x.data).ok()))
         {
             return match c {
                 JavaChunkEnum::Post18(_) => RegionVersion::AtLeast118,
