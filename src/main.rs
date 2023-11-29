@@ -219,18 +219,18 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
 
             match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
                 Ok(Some(mut region)) => {
-                    info!("Processing region ({},{}).", reg_x, reg_z);
+                    info!("Processing region ({}, {}).", reg_x, reg_z);
                     (
                         RegionResult::Ok(count_frequencies(&mut region, verbose, dimension)),
                         1,
                     )
                 }
                 Ok(None) => {
-                    info!("Region ({},{}) not found.", reg_x, reg_z);
+                    info!("Region ({}, {}) not found.", reg_x, reg_z);
                     (RegionResult::Ignore, 0)
                 }
                 Err(e) => {
-                    warn!("Region ({reg_x},{reg_z}) failed to load! Error: {e:?}.");
+                    warn!("Region ({reg_x}, {reg_z}) failed to load! Error: {e:?}.");
                     (RegionResult::Ignore, 0)
                 }
             }
@@ -261,14 +261,14 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         regions_num, valid_regions
     );
     info!(
-        "Nonempty chunks counted:{}, around {:.2}% of the zone specified.",
+        "Nonempty chunks counted: {}, around {:.2}% of the zone specified.",
         total_freqs.chunks_counted,
         (total_freqs.chunks_counted as f64 / (regions_num * 1024) as f64) * 100.0
     );
-    info!("Area on each layer:{}", total_freqs.area);
-    info!("Blocks counted:{}", total_freqs.blocks_counted);
+    info!("Area on each layer: {}", total_freqs.area);
+    info!("Blocks counted: {}", total_freqs.blocks_counted);
     info!(
-        "Elapsed:{:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 \
+        "Elapsed: {:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 \
          scanned chunks.",
         elapsed_time,
         regions_num,
