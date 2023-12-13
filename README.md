@@ -23,7 +23,7 @@ Options:
 
   -f, --format <FORMAT>
           The format to export to
-
+          
           [default: jer]
 
           Possible values:
@@ -32,8 +32,13 @@ Options:
 
   -t, --threads <THREADS>
           Number of worker threads to use for scanning dimensions. If set to zero, will be chosen automatically by rayon
-
+          
           [default: 0]
+
+  -o, --only-blocks-above <ONLY_BLOCKS_ABOVE>
+          If not none, only blocks with a normalized frequency above this value will be exported. Normalized frequency is the sum of frequencies by level divided by 255 (even in 1.18+ worlds which are higher than that). For example, a value of 0.01 means retain blocks more common that 1 in 100 (which is ~655 such blocks per 255-height chunk). The default value is 1e-7, which is about 26 blocks pre 4096 chunks. Some comparisons: minecraft:emerald_ore is ~3e-6, minecraft:deepslate_emerald_ore (1.18) is ~2e-7, minecraft:ancient_debris is ~2e-5
+          
+          [default: 1e-7]
 ```
 
 Example command: `region_scanner.exe --path "D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld" --dims minecraft:overworld minecraft:the_nether minecraft:the_end --zone -1,1,-1,1`.
