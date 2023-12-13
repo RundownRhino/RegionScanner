@@ -53,14 +53,16 @@ struct Args {
     /// set to zero, will be chosen automatically by rayon.
     #[arg(short, long, default_value_t = 0)]
     threads: usize,
-    /// If set, only blocks with a normalized frequency (sum of frequencies by
-    /// level divided by 255 (even in 1.18+ worlds)) above this parameter
-    /// will be exported. For example, a value of 0.01 means retain blocks
-    /// more common that 1 in 100 (which means ~655 such blocks per
-    /// 255-height chunk). A good value for this is 1e-7, which is about 26
-    /// blocks pre 4096 chunks. Some comparisons: minecraft:emerald_ore is
-    /// about 3e-6, minecraft:ancient_debris is about 2e-5.
-    #[arg(short, long, required = false)]
+    /// If not none, only blocks with a normalized frequency above this value
+    /// will be exported. Normalized frequency is the sum of frequencies by
+    /// level divided by 255 (even in 1.18+ worlds which are higher than that).
+    /// For example, a value of 0.01 means retain blocks more common that 1
+    /// in 100 (which is ~655 such blocks per 255-height chunk). The default
+    /// value is 1e-7, which is about 26 blocks pre 4096 chunks.
+    /// Some comparisons: minecraft:emerald_ore is ~3e-6,
+    /// minecraft:deepslate_emerald_ore (1.18) is ~2e-7,
+    /// minecraft:ancient_debris is ~2e-5.
+    #[arg(short, long, required = false, default_value = "1e-7")]
     only_blocks_above: Option<f64>,
 }
 

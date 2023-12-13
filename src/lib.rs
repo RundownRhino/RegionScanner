@@ -313,9 +313,19 @@ pub fn remove_too_rare(results_by_dim: &mut [(BlockFrequencies, RegionVersion)],
     // metric would change for the same world between versions.
     let world_height = 255f64;
     for (freqs, _) in results_by_dim.iter_mut() {
-        freqs.frequencies.retain(|_, v: &mut HashMap<isize, f64>| {
+        freqs.frequencies.retain(|k, v: &mut HashMap<isize, f64>| {
             let normalized_frequency = v.values().sum::<f64>() / world_height;
-            normalized_frequency >= cutoff
+            if normalized_frequency >= cutoff {
+                true
+            } else {
+                trace!(
+                    "Dropping record ({}, {}) with normalized frequency {:.2e}.",
+                    &freqs.dimension,
+                    k,
+                    normalized_frequency
+                );
+                false
+            }
         });
     }
 }
