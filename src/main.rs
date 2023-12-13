@@ -53,6 +53,15 @@ struct Args {
     /// set to zero, will be chosen automatically by rayon.
     #[arg(short, long, default_value_t = 0)]
     threads: usize,
+    /// If set, only blocks with a normalized frequency (sum of frequencies by
+    /// level divided by 255 (even in 1.18+ worlds)) above this parameter
+    /// will be exported. For example, a value of 0.01 means retain blocks
+    /// more common that 1 in 100 (which means ~655 such blocks per
+    /// 255-height chunk). A good value for this is 1e-7, which is about 26
+    /// blocks pre 4096 chunks. Some comparisons: minecraft:emerald_ore is
+    /// about 3e-6, minecraft:ancient_debris is about 2e-5.
+    #[arg(short, long, required = false)]
+    only_blocks_above: Option<f64>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -114,6 +123,15 @@ fn main() -> Result<()> {
         };
     }
 
+    if let Some(x) = args.only_blocks_above {
+        if x <= 0. {
+            bail!(
+                "Value of only_blocks_above must be positive if passed, got {}",
+                x
+            );
+        }
+    }
+
     if args.threads != 0 {
         // Set rayon thread limit
         rayon::ThreadPoolBuilder::new()
@@ -122,7 +140,24 @@ fn main() -> Result<()> {
             .context("Unable to set thread count!")?;
     }
 
-    let results_by_dim = scan_multiple(&paths_to_scan, zone);
+    let mut results_by_dim = scan_multiple(&paths_to_scan, zone);
+
+    if let Some(only_blocks_above) = args.only_blocks_above {
+        let before: usize = results_by_dim
+            .iter()
+            .map(|(f, _)| f.frequencies.len())
+            .sum();
+        remove_too_rare(&mut results_by_dim, only_blocks_above);
+        let after: usize = results_by_dim
+            .iter()
+            .map(|(f, _)| f.frequencies.len())
+            .sum();
+        info!(
+            "Filtered results by normalized frequency. {} block-dim pairs out of {} were retained.",
+            after, before
+        );
+    }
+
     let prefix = std::path::Path::new("output");
     std::fs::create_dir_all(prefix).unwrap();
     let (path, data) = match args.format {

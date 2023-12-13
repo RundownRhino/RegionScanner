@@ -304,3 +304,18 @@ fn test_dim_to_path_conversions() {
         panic!("{}", panic_str);
     }
 }
+
+pub fn remove_too_rare(results_by_dim: &mut [(BlockFrequencies, RegionVersion)], cutoff: f64) {
+    if cutoff <= 0. {
+        panic!("Cutoff must be positive, got {}", cutoff);
+    }
+    // Always 255, even in 1.18+ worlds - otherwise this
+    // metric would change for the same world between versions.
+    let world_height = 255f64;
+    for (freqs, _) in results_by_dim.iter_mut() {
+        freqs.frequencies.retain(|_, v: &mut HashMap<isize, f64>| {
+            let normalized_frequency = v.values().sum::<f64>() / world_height;
+            normalized_frequency >= cutoff
+        });
+    }
+}
