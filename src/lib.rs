@@ -223,20 +223,24 @@ pub fn generate_tall_csv(frequency_data: &[(BlockFrequencies, RegionVersion)]) -
 fn freqs_to_distrib(freqs: &HashMap<isize, f64>, version: RegionVersion) -> String {
     assert!(!freqs.is_empty(), "Got an empty distribution!");
     let mut distrib = String::new();
-    let min_y = *freqs.keys().min().unwrap();
+
+    // JER for 1.18+ stores the levels with an offset of 64 - that way levels start
+    // from 0 inclusive regardless of version.
+    let offset = match version {
+        RegionVersion::Pre118 => 0,
+        RegionVersion::AtLeast118 => 64,
+    };
+    // We always mention all values from the very bottom of the world, otherwise JER
+    // plots for rare ores can look bad.
+    let min_y = -offset;
     let max_y = *freqs.keys().max().unwrap();
-    (min_y..=max_y)
-        .map(|y| {
-            // JER for 1.18 stores the levels with an offset of 64, so levels go from 0
-            // inclusive to 320 exclusive.
-            let offset = match version {
-                RegionVersion::Pre118 => 0,
-                RegionVersion::AtLeast118 => 64,
-            };
-            ((y + offset) as u16, *freqs.get(&y).unwrap_or(&0f64))
-        })
-        .map(|(y, value)| format!("{},{};", y, value))
-        .for_each(|x| distrib.push_str(&x));
+    // sanity check
+    assert!(*freqs.keys().min().unwrap() >= min_y);
+
+    for y in min_y..=max_y {
+        let value = *freqs.get(&y).unwrap_or(&0f64);
+        distrib.push_str(&format!("{},{};", (y + offset) as u16, value));
+    }
     distrib
 }
 #[derive(Serialize, Deserialize)]
