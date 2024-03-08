@@ -79,13 +79,41 @@ impl BlockFrequencies {
     }
 }
 #[derive(Copy, Clone)]
-pub struct Zone(pub isize, pub isize, pub isize, pub isize);
+pub struct Zone {
+    pub from_x: isize,
+    pub to_x: isize,
+    pub from_z: isize,
+    pub to_z: isize,
+}
+
+impl Zone {
+    pub fn new(from_x: isize, to_x: isize, from_z: isize, to_z: isize) -> Self {
+        if to_x <= from_x {
+            panic!(
+                "Tried to create a Zone with from_x={from_x}, to_x={to_x}. This is invalid - to_x \
+                 must be larger than from_x for the zone to be nonempty. Perhaps the order of \
+                 arguments is wrong?"
+            );
+        }
+        Self {
+            from_x,
+            to_x,
+            from_z,
+            to_z,
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        (self.to_x - self.from_x) as usize * (self.to_z - self.from_z) as usize
+    }
+}
+
 impl From<Vec<isize>> for Zone {
     fn from(vec: Vec<isize>) -> Self {
         if vec.len() < 4 {
             panic!("Vector too small to convert to a Zone:{:?}", vec);
         }
-        Zone(vec[0], vec[1], vec[2], vec[3])
+        Zone::new(vec[0], vec[1], vec[2], vec[3])
     }
 }
 #[derive(Clone, Copy, Debug)]
@@ -97,7 +125,8 @@ pub enum RegionVersion {
 /// finds in the zone provided.
 pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVersion {
     use fastanvil::JavaChunk as JavaChunkEnum;
-    for mut region in iproduct!(zone.0..zone.1, zone.2..zone.3).filter_map(|(reg_x, reg_z)|
+    for mut region in
+        iproduct!(zone.from_x..zone.to_x, zone.from_z..zone.to_z).filter_map(|(reg_x, reg_z)|
         // This ignores regions that fail to load, which may or may not be a good idea
         regions.region(RCoord(reg_x), RCoord(reg_z)).ok().flatten())
     {

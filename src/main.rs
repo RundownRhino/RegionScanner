@@ -231,8 +231,9 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     zone: Zone,
     dimension: &str,
 ) -> DimensionScanResult {
-    let regions_num = (zone.1 - zone.0) * (zone.3 - zone.2);
-    let indexes: Vec<(isize, isize)> = iproduct!(zone.0..zone.1, zone.2..zone.3).collect();
+    let regions_num = zone.size();
+    let indexes: Vec<(isize, isize)> =
+        iproduct!(zone.from_x..zone.to_x, zone.from_z..zone.to_z).collect();
     let start = Instant::now();
     let verbose = false;
     // RegionFileLoader takes specifically a PathBuf, so we have to clone this one
