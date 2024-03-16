@@ -158,14 +158,10 @@ pub enum RegionVersion {
     AtLeast118,
 }
 /// Determines the version of a world by checking the first nonempty region it
-/// finds in the zone provided.
-pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVersion {
+/// finds in the zone provided (or all the regions in the loader).
+pub fn determine_version(loader: &RegionFileLoader, zone: Option<Zone>) -> RegionVersion {
     use fastanvil::JavaChunk as JavaChunkEnum;
-    for mut region in
-        iproduct!(zone.from_x..zone.to_x, zone.from_z..zone.to_z).filter_map(|(reg_x, reg_z)|
-        // This ignores regions that fail to load, which may or may not be a good idea
-        regions.region(RCoord(reg_x), RCoord(reg_z)).ok().flatten())
-    {
+    for mut region in iter_regions(loader, zone) {
         if let Some(c) = chunks(&mut region)
             .find_map(|data| data.and_then(|x| JavaChunkEnum::from_bytes(&x.data).ok()))
         {
@@ -180,6 +176,27 @@ pub fn determine_version(regions: &mut RegionFileLoader, zone: Zone) -> RegionVe
         "Was unable to find a single chunk in a single region in the zone provided that was \
          readable!"
     );
+}
+
+pub fn region_coords(loader: &RegionFileLoader, zone: Option<Zone>) -> Vec<(RCoord, RCoord)> {
+    if let Some(zone) = zone {
+        iproduct!(zone.from_x..zone.to_x, zone.from_z..zone.to_z)
+            .map(|(x, z)| (RCoord(x), RCoord(z)))
+            .collect()
+    } else {
+        loader.list().unwrap()
+    }
+}
+
+/// Iterates over the regions in a zone, or all regions in the loader. Ignores
+/// regions that fail to load, which may or may not be a good idea
+pub fn iter_regions(
+    loader: &RegionFileLoader,
+    zone: Option<Zone>,
+) -> impl Iterator<Item = Region<File>> + '_ {
+    region_coords(loader, zone)
+        .into_iter()
+        .filter_map(|(reg_x, reg_z)| loader.region(reg_x, reg_z).ok().flatten())
 }
 
 pub fn count_frequencies(

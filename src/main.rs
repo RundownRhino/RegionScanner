@@ -8,7 +8,6 @@ use color_eyre::{
 #[macro_use]
 extern crate log;
 use fastanvil::{RCoord, RegionFileLoader, RegionLoader};
-use itertools::iproduct;
 use rayon::prelude::*;
 use region_scanner::*;
 
@@ -35,17 +34,18 @@ struct Args {
     /// The zone to scan in every dimension, in regions, in the format of
     /// 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
     /// For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1),
-    /// (-1,0), (0,-1) and (0,0).
+    /// (-1,0), (0,-1) and (0,0). If not provided, tries to scan all regions of
+    /// each dimension.
     #[arg(
         short,
         long,
-        required = true,
+        required = false,
         value_names = ["FROM_X", "TO_X", "FROM_Z", "TO_Z"],
         num_args = 1..=4, // necessary to make value_delimiter work here
         value_delimiter = ',',
         allow_hyphen_values = true
     )]
-    zone: Vec<isize>,
+    zone: Option<Vec<isize>>,
     /// The format to export to
     #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
     format: ExportFormat,
@@ -96,15 +96,19 @@ fn main() -> Result<()> {
         "It doesn't seem like the path `{}` exists!",
         args.path.display()
     );
-    // Necessary check because this seems to not be possible to describe in clap v4
-    // - it used to be num_values.
-    ensure!(
-        args.zone.len() == 4,
-        "Wrong number of zone values! Expected: 4, got: {}. See --help or examples on the repo \
-         for details.",
-        args.zone.len()
-    );
-    let zone: Zone = Zone::from(args.zone);
+    let zone: Option<Zone> = if let Some(coords) = args.zone {
+        // Necessary check because this seems to not be possible to describe in clap v4
+        // - it used to be num_values.
+        ensure!(
+            coords.len() == 4,
+            "Wrong number of zone values! Expected: 4, got: {}. See --help or examples on the \
+             repo for details.",
+            coords.len()
+        );
+        Some(Zone::from(coords))
+    } else {
+        None
+    };
 
     let mut paths_to_scan = vec![];
     for dimension in &args.dims {
@@ -192,7 +196,7 @@ fn main() -> Result<()> {
 
 fn scan_multiple(
     dim_paths: &[(&str, std::path::PathBuf)],
-    zone: Zone,
+    zone: Option<Zone>,
     proto: ProtoOption,
 ) -> Vec<(BlockFrequencies, RegionVersion)> {
     let mut results_by_dim = vec![];
@@ -234,19 +238,21 @@ enum DimensionScanResult {
 
 fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     path: S,
-    zone: Zone,
+    zone: Option<Zone>,
     dimension: &str,
     proto: ProtoOption,
 ) -> DimensionScanResult {
-    let regions_num = zone.size();
-    let indexes: Vec<(isize, isize)> =
-        iproduct!(zone.from_x..zone.to_x, zone.from_z..zone.to_z).collect();
-    let start = Instant::now();
-    let verbose = false;
     // RegionFileLoader takes specifically a PathBuf, so we have to clone this one
     // for each thread.
     let regionfolder: std::path::PathBuf = std::path::PathBuf::from(path.as_ref());
-    let version = determine_version(&mut RegionFileLoader::new(regionfolder.clone()), zone);
+    let loader = RegionFileLoader::new(regionfolder.clone());
+
+    let coords = region_coords(&loader, zone);
+
+    let start = Instant::now();
+    let verbose = false;
+
+    let version = determine_version(&loader, zone);
     info!(
         "World version detected as {}.",
         if matches!(version, RegionVersion::AtLeast118) {
@@ -256,33 +262,35 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         }
     );
 
-    let (total_freqs, valid_regions) = indexes
+    let (total_freqs, valid_regions, seen_regions) = coords
         .par_iter()
+        .map(|(x, z)| (x.0, z.0))
         .map(|(reg_x, reg_z)| {
             let s = regionfolder.clone();
             let regions = RegionFileLoader::new(s);
 
-            match regions.region(RCoord(*reg_x), RCoord(*reg_z)) {
+            match regions.region(RCoord(reg_x), RCoord(reg_z)) {
                 Ok(Some(mut region)) => {
                     info!("Processing region ({}, {}).", reg_x, reg_z);
                     (
                         RegionResult::Ok(count_frequencies(&mut region, verbose, dimension, proto)),
                         1,
+                        1usize,
                     )
                 }
                 Ok(None) => {
                     info!("Region ({}, {}) not found.", reg_x, reg_z);
-                    (RegionResult::Ignore, 0)
+                    (RegionResult::Ignore, 0, 1)
                 }
                 Err(e) => {
                     warn!("Region ({reg_x}, {reg_z}) failed to load! Error: {e:?}.");
-                    (RegionResult::Ignore, 0)
+                    (RegionResult::Ignore, 0, 1)
                 }
             }
         })
         .reduce(
-            || (RegionResult::Ignore, 0),
-            |(main, main_count), (other, other_count)| {
+            || (RegionResult::Ignore, 0, 0),
+            |(main, main_count, main_seen), (other, other_count, other_seen)| {
                 let sum = match (main, other) {
                     (RegionResult::Ok(mut freqs1), RegionResult::Ok(freqs2)) => {
                         merge_frequencies_into(&mut freqs1, freqs2);
@@ -292,7 +300,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
                     (RegionResult::Ignore, RegionResult::Ok(freqs2)) => RegionResult::Ok(freqs2),
                     (RegionResult::Ignore, RegionResult::Ignore) => RegionResult::Ignore,
                 };
-                (sum, main_count + other_count)
+                (sum, main_count + other_count, main_seen + other_seen)
             },
         );
     let total_freqs = match total_freqs {
@@ -303,13 +311,23 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     // print_results(&total_freqs);
     info!(
         "Tried to scan {} regions. Succeeded in scanning {}.",
-        regions_num, valid_regions
+        zone.map(|z| z.size()).unwrap_or(seen_regions),
+        valid_regions
     );
-    info!(
-        "Chunks scanned: {}, around {:.2}% of the zone specified.",
-        total_freqs.chunks_counted,
-        (total_freqs.chunks_counted as f64 / (regions_num * 1024) as f64) * 100.0
-    );
+    if let Some(zone) = zone {
+        info!(
+            "Chunks scanned: {}, around {:.2}% of the zone specified.",
+            total_freqs.chunks_counted,
+            (total_freqs.chunks_counted as f64 / (zone.size() * 1024) as f64) * 100.0
+        );
+    } else {
+        info!(
+            "Chunks scanned: {}, around {:.2}% of the area of the regions found.",
+            total_freqs.chunks_counted,
+            (total_freqs.chunks_counted as f64 / (seen_regions * 1024) as f64) * 100.0
+        );
+    }
+
     match proto {
         ProtoOption::Skip => info!("{} protochunks were skipped.", total_freqs.protochunks_seen),
         ProtoOption::Include => {
@@ -323,10 +341,8 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     info!("Area on each layer: {}", total_freqs.area);
     info!("Blocks counted: {}", total_freqs.blocks_counted);
     info!(
-        "Elapsed: {:.2}s for {} regions, average of {:.2}s per scanned region, or {:.2}s per 1024 \
-         scanned chunks.",
+        "Elapsed: {:.2}s, average of {:.2}s per scanned region, or {:.2}s per 1024 scanned chunks.",
         elapsed_time,
-        regions_num,
         elapsed_time / valid_regions as f32,
         elapsed_time / (total_freqs.chunks_counted as f32) * 1024.0
     );
