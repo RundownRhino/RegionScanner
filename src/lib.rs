@@ -15,8 +15,14 @@ use fastanvil::{Chunk, JavaChunk, RCoord, Region, RegionFileLoader, RegionLoader
 use itertools::iproduct;
 use serde::{Deserialize, Serialize};
 
-pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -> BlockCounts {
-    let mut chunks_counted: usize = 0;
+pub fn count_blocks(
+    region: &mut Region<File>,
+    verbose: bool,
+    dimension: &str,
+    proto: ProtoOption,
+) -> BlockCounts {
+    let mut chunks_counted = 0;
+    let mut protochunks_seen = 0;
     let mut blocks_counted: u64 = 0;
     let mut counts: HashMap<String, HashMap<isize, u64>> = HashMap::new();
     let mut closure = |xpos: usize, zpos: usize, chunk_processed: JavaChunk| {
@@ -42,8 +48,20 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
     };
 
     for data in chunks(region).flatten() {
+        use ProtoOption::*;
         // This silently skips chunks that fail to deserialise.
         if let Ok(c) = JavaChunk::from_bytes(&data.data) {
+            // See https://minecraft.wiki/w/Chunk_format
+            if c.status() != "minecraft:full" {
+                protochunks_seen += 1;
+                if proto == Skip {
+                    continue;
+                }
+            }
+            // otherwise it's a full chunk
+            else if proto == OnlyProto {
+                continue;
+            }
             closure(data.x, data.z, c);
         }
     }
@@ -51,20 +69,36 @@ pub fn count_blocks(region: &mut Region<File>, verbose: bool, dimension: &str) -
         counts,
         blocks_counted,
         chunks_counted,
+        protochunks_seen,
         dimension: dimension.to_string(),
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ProtoOption {
+    /// Protochunks will be skipped
+    Skip,
+    /// Protochunks will be included in the scan
+    Include,
+    /// *Only* protochunks will be scanned (useful for testing).
+    OnlyProto,
 }
 
 pub struct BlockCounts {
     pub counts: HashMap<String, HashMap<isize, u64>>,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
+    pub protochunks_seen: usize,
     pub dimension: String,
 }
 pub struct BlockFrequencies {
+    // Remember to update merge_frequencies_into when adding fields!
     pub frequencies: HashMap<String, HashMap<isize, f64>>,
     pub blocks_counted: u64,
     pub chunks_counted: usize,
+    /// For ProtoOption::Skip these were skipped, for Include they are part of
+    /// the counted, for OnlyProto should be equal to chunks_counted.
+    pub protochunks_seen: usize,
     pub area: u64,
     pub dimension: String,
 }
@@ -74,6 +108,7 @@ impl BlockFrequencies {
             frequencies: HashMap::new(),
             blocks_counted: 0,
             chunks_counted: 0,
+            protochunks_seen: 0,
             area: 0,
             dimension,
         }
@@ -151,8 +186,9 @@ pub fn count_frequencies(
     region: &mut Region<File>,
     verbose: bool,
     dimension: &str,
+    proto: ProtoOption,
 ) -> BlockFrequencies {
-    let counting_results = count_blocks(region, verbose, dimension);
+    let counting_results = count_blocks(region, verbose, dimension, proto);
     let area: u64 = (16 * 16) * counting_results.chunks_counted as u64;
     let mut frequencies: HashMap<String, HashMap<isize, f64>> = HashMap::new();
     let d_area = area as f64;
@@ -168,6 +204,7 @@ pub fn count_frequencies(
         frequencies,
         blocks_counted: counting_results.blocks_counted,
         chunks_counted: counting_results.chunks_counted,
+        protochunks_seen: counting_results.protochunks_seen,
         area,
         dimension: counting_results.dimension,
     }
@@ -189,6 +226,7 @@ pub fn merge_frequencies_into(main: &mut BlockFrequencies, other: BlockFrequenci
     main.area += other.area;
     main.blocks_counted += other.blocks_counted;
     main.chunks_counted += other.chunks_counted;
+    main.protochunks_seen += other.protochunks_seen;
 }
 pub fn counts_add_weighted(a: &mut HashMap<isize, f64>, b: &HashMap<isize, f64>, a_weight: f64) {
     assert!(

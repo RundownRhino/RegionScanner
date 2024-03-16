@@ -64,6 +64,11 @@ struct Args {
     /// minecraft:ancient_debris is ~2e-5.
     #[arg(short, long, required = false, default_value = "1e-7")]
     only_blocks_above: Option<f64>,
+
+    /// How to handle protochunks (chunks with a status other than
+    /// minecraft:full, meaning they aren't fully generated).
+    #[arg(long, required=false, value_enum, default_value_t=ProtoOption::Skip)]
+    proto: ProtoOption,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -142,7 +147,7 @@ fn main() -> Result<()> {
             .context("Unable to set thread count!")?;
     }
 
-    let mut results_by_dim = scan_multiple(&paths_to_scan, zone);
+    let mut results_by_dim = scan_multiple(&paths_to_scan, zone, args.proto);
 
     if let Some(only_blocks_above) = args.only_blocks_above {
         let before: usize = results_by_dim
@@ -188,6 +193,7 @@ fn main() -> Result<()> {
 fn scan_multiple(
     dim_paths: &[(&str, std::path::PathBuf)],
     zone: Zone,
+    proto: ProtoOption,
 ) -> Vec<(BlockFrequencies, RegionVersion)> {
     let mut results_by_dim = vec![];
     for (dim, path) in dim_paths {
@@ -196,7 +202,7 @@ fn scan_multiple(
             dim,
             path.to_string_lossy()
         );
-        match process_zone_in_folder(path, zone, dim) {
+        match process_zone_in_folder(path, zone, dim, proto) {
             DimensionScanResult::Ok(res) => results_by_dim.push(res),
             DimensionScanResult::NoRegionsPresent => {
                 warn!(
@@ -230,6 +236,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
     path: S,
     zone: Zone,
     dimension: &str,
+    proto: ProtoOption,
 ) -> DimensionScanResult {
     let regions_num = zone.size();
     let indexes: Vec<(isize, isize)> =
@@ -259,7 +266,7 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
                 Ok(Some(mut region)) => {
                     info!("Processing region ({}, {}).", reg_x, reg_z);
                     (
-                        RegionResult::Ok(count_frequencies(&mut region, verbose, dimension)),
+                        RegionResult::Ok(count_frequencies(&mut region, verbose, dimension, proto)),
                         1,
                     )
                 }
@@ -299,10 +306,20 @@ fn process_zone_in_folder<S: AsRef<std::path::Path> + std::marker::Sync>(
         regions_num, valid_regions
     );
     info!(
-        "Nonempty chunks counted: {}, around {:.2}% of the zone specified.",
+        "Chunks scanned: {}, around {:.2}% of the zone specified.",
         total_freqs.chunks_counted,
         (total_freqs.chunks_counted as f64 / (regions_num * 1024) as f64) * 100.0
     );
+    match proto {
+        ProtoOption::Skip => info!("{} protochunks were skipped.", total_freqs.protochunks_seen),
+        ProtoOption::Include => {
+            info!(
+                "{} of the scanned chunks were protochunks.",
+                total_freqs.protochunks_seen
+            )
+        }
+        ProtoOption::OnlyProto => info!("All of the scanned chunks were protochunks"),
+    }
     info!("Area on each layer: {}", total_freqs.area);
     info!("Blocks counted: {}", total_freqs.blocks_counted);
     info!(
