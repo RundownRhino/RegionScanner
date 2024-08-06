@@ -123,7 +123,7 @@ jobs:
         staging="region_scanner-${{ needs.create-release.outputs.rs_version }}-${{ matrix.target }}"
         mkdir -p "$staging"
         cp {README.md,LICENSE} "$staging/"
-        if [ "${{ matrix.os }}" = "windows-2019" ]; then
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
           cp "target/${{ matrix.target }}/release/region_scanner.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
