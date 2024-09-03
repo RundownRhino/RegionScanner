@@ -269,7 +269,7 @@ pub fn generate_JER_json(
             if freqs.is_empty() {
                 continue;
             }
-            let distrib = freqs_to_distrib(freqs, *version, &freq_data.dimension);
+            let distrib = freqs_to_distrib(freqs, *version, &freq_data.dimension, name);
             if distrib.is_empty() {
                 continue;
             }
@@ -313,6 +313,7 @@ fn freqs_to_distrib(
     freqs: &HashMap<isize, f64>,
     version: RegionVersion,
     dimension: &str,
+    name: &str,
 ) -> String {
     assert!(!freqs.is_empty(), "Got an empty distribution!");
     let mut distrib = String::new();
@@ -326,33 +327,38 @@ fn freqs_to_distrib(
     // We always mention all values from the very bottom of the world, otherwise JER
     // plots for rare ores can look bad.
     let depth_limit = -offset;
+    let max_jer_height = 255;
     let min_y = *freqs.keys().min().unwrap();
     let max_y = *freqs.keys().max().unwrap();
 
     // It *is* possible for a modded dimension to be below that limit.
     // However, for JER export we ignore it, since JER won't be able to
     // render it as a plot anyway. See issue #11 for details.
-    static DIMENSIONS_MINY_EXCEEDED: Mutex<Vec<String>> = Mutex::new(vec![]);
-    if min_y < depth_limit {
-        let mut cache = DIMENSIONS_MINY_EXCEEDED.lock().unwrap();
+    // Similarly, we discard data about y=255, as the JER loads the frequencies as
+    // an array of size 320 and will raise an error on bigger ones. See issue #16.
+    static DIMENSIONS_LIMITS_EXCEEDED: Mutex<Vec<String>> = Mutex::new(vec![]);
+    if min_y < depth_limit || max_y > max_jer_height {
+        let mut cache = DIMENSIONS_LIMITS_EXCEEDED.lock().unwrap();
         if !cache.iter().any(|x| x == dimension) {
             warn!(
-                "An entry for dimension {dimension} was below the depth limit of {depth_limit} - \
-                 lowest block was at y={min_y}. Blocks below the depth limit will be ignored when \
-                 exporting, as JER doesn't support them. Use another export format if you need to \
-                 export them. Further occurences of this warning for this dimension will be at \
-                 level TRACE."
+                "Block kind {name} for dimension {dimension} exceeded the dimension height limits \
+                 of {depth_limit} to {max_jer_height}: the lowest block of this kind was at \
+                 y={min_y} and the highest at y={max_y}. Frequencies outside the height limits \
+                 will be omitted when exporting, as JER doesn't support them. Use another export \
+                 format to avoid this limitation. Further occurences of this warning for this \
+                 dimension will be at level TRACE."
             );
             cache.push(dimension.to_owned());
         } else {
             trace!(
-                "An entry for dimension {dimension} was below the depth limit of {depth_limit} - \
-                 lowest block was at y={min_y}."
+                "Block kind {name} for dimension {dimension} exceeded the dimension height limits \
+                 of {depth_limit} to {max_jer_height}: the lowest block of this kind was at \
+                 y={min_y} and the highest at y={max_y}."
             );
         }
     }
 
-    for y in depth_limit..=max_y {
+    for y in depth_limit..=isize::min(max_y, max_jer_height) {
         let value = *freqs.get(&y).unwrap_or(&0f64);
         distrib.push_str(&format!("{},{};", (y + offset) as u16, value));
     }
