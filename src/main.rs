@@ -18,8 +18,19 @@ struct Args {
     /// This is the folder the 'region' folder is in.
     /// Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20
     /// 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
-    #[arg(short, long, value_name = "FOLDER", value_hint=ValueHint::DirPath)]
+    #[arg(short, long, value_name = "SAVEFOLDER", value_hint=ValueHint::DirPath)]
     path: PathBuf,
+
+    /// The format to export to
+    #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
+    format: ExportFormat,
+
+    /// The folder to put the output file in. Will be created if missing. The
+    /// default is a folder called "output" in the current working
+    /// directory.
+    #[arg(short='o', long="output", value_name = "OUTFOLDER", value_hint=ValueHint::DirPath, default_value="output")]
+    output_folder: PathBuf,
+
     /// The dimension IDs to scan in the new format.
     /// Examples: 'minecraft:overworld', 'minecraft:the_nether',
     /// 'minecraft:the_end', 'jamd:mining'.
@@ -31,6 +42,7 @@ struct Args {
         num_args = 1..
     )]
     dims: Vec<String>,
+
     /// The zone to scan in every dimension, in regions, in the format of
     /// 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces).
     /// For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1),
@@ -46,13 +58,7 @@ struct Args {
         allow_hyphen_values = true
     )]
     zone: Option<Vec<isize>>,
-    /// The format to export to
-    #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
-    format: ExportFormat,
-    /// Number of worker threads to use for scanning dimensions. If
-    /// set to zero, will be chosen automatically by rayon.
-    #[arg(short, long, default_value_t = 0)]
-    threads: usize,
+
     /// If not none, only blocks with a normalized frequency above this value
     /// will be exported. Normalized frequency is the sum of frequencies by
     /// level divided by 255 (even in 1.18+ worlds which are higher than that).
@@ -69,6 +75,11 @@ struct Args {
     /// minecraft:full, meaning they aren't fully generated).
     #[arg(long, required=false, value_enum, default_value_t=ProtoOption::Skip)]
     proto: ProtoOption,
+
+    /// Number of worker threads to use for scanning dimensions. If
+    /// set to zero, will be chosen automatically by rayon.
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -93,9 +104,16 @@ fn main() -> Result<()> {
     let args = Args::parse();
     ensure!(
         args.path.exists(),
-        "It doesn't seem like the path `{}` exists!",
-        args.path.display()
+        "It doesn't seem like the path {:?} exists!",
+        args.path
     );
+    std::fs::create_dir_all(&args.output_folder).with_context(|| {
+        format!(
+            "Failed to create the output directory {:?}",
+            &args.output_folder
+        )
+    })?;
+
     let zone: Option<Zone> = if let Some(coords) = args.zone {
         // Necessary check because this seems to not be possible to describe in clap v4
         // - it used to be num_values.
@@ -169,17 +187,15 @@ fn main() -> Result<()> {
         );
     }
 
-    let prefix = std::path::Path::new("output");
-    std::fs::create_dir_all(prefix).unwrap();
     let (path, data) = match args.format {
         ExportFormat::Jer => {
-            let json_string = generate_JER_json(&results_by_dim).unwrap();
-            let path = prefix.join("world-gen.json");
+            let json_string = generate_JER_json(&results_by_dim)?;
+            let path = args.output_folder.join("world-gen.json");
             (path, json_string)
         }
         ExportFormat::TallCSV => {
             let csv_string = generate_tall_csv(&results_by_dim);
-            let path = prefix.join("world-gen.csv");
+            let path = args.output_folder.join("world-gen.csv");
             (path, csv_string)
         }
     };
@@ -187,10 +203,8 @@ fn main() -> Result<()> {
         .write(true)
         .truncate(true)
         .create(true)
-        .open(path)
-        .unwrap()
-        .write_all(data.as_bytes())
-        .unwrap();
+        .open(path)?
+        .write_all(data.as_bytes())?;
     Ok(())
 }
 
