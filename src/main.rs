@@ -190,12 +190,12 @@ fn main() -> Result<()> {
     let (path, data) = match args.format {
         ExportFormat::Jer => {
             let json_string = generate_JER_json(&results_by_dim)?;
-            let path = args.output_folder.join("world-gen.json");
+            let path = args.output_folder.join("world-gen.json").canonicalize()?;
             (path, json_string)
         }
         ExportFormat::TallCSV => {
             let csv_string = generate_tall_csv(&results_by_dim);
-            let path = args.output_folder.join("world-gen.csv");
+            let path = args.output_folder.join("world-gen.csv").canonicalize()?;
             (path, csv_string)
         }
     };
@@ -203,8 +203,9 @@ fn main() -> Result<()> {
         .write(true)
         .truncate(true)
         .create(true)
-        .open(path)?
+        .open(&path)?
         .write_all(data.as_bytes())?;
+    info!("Wrote output to {:?}.", &path);
     Ok(())
 }
 
