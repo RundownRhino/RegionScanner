@@ -78,7 +78,7 @@ struct Args {
 
     /// Number of worker threads to use for scanning dimensions. If
     /// set to zero, will be chosen automatically by rayon.
-    #[arg(short='t', long, default_value_t = 0)]
+    #[arg(short = 't', long, default_value_t = 0)]
     threads: usize,
 }
 
@@ -187,18 +187,17 @@ fn main() -> Result<()> {
         );
     }
 
-    let (path, data) = match args.format {
+    let (filename, data) = match args.format {
         ExportFormat::Jer => {
             let json_string = generate_JER_json(&results_by_dim)?;
-            let path = args.output_folder.join("world-gen.json").canonicalize()?;
-            (path, json_string)
+            ("world-gen.json", json_string)
         }
         ExportFormat::TallCSV => {
             let csv_string = generate_tall_csv(&results_by_dim);
-            let path = args.output_folder.join("world-gen.csv").canonicalize()?;
-            (path, csv_string)
+            ("world-gen.csv", csv_string)
         }
     };
+    let path = std::path::absolute(args.output_folder.join(filename))?;
     std::fs::OpenOptions::new()
         .write(true)
         .truncate(true)
