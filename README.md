@@ -12,14 +12,8 @@ If you're on Windows and not sure which to pick, you most likely want `x86_64-pc
 See `--help` for help. Excerpt:
 ```
 Options:
-  -p, --path <FOLDER>
+  -p, --path <SAVEFOLDER>
           The absolute path to the save folder of the world to scan. This is the folder the 'region' folder is in. Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
-
-  -d, --dims <DIMENSION_ID>...
-          The dimension IDs to scan in the new format. Examples: 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end', 'jamd:mining'
-
-  -z, --zone <FROM_X> <TO_X> <FROM_Z> <TO_Z>
-          The zone to scan in every dimension, in regions, in the format of 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces). For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and (0,0). If not provided, tries to scan all regions of each dimension
 
   -f, --format <FORMAT>
           The format to export to
@@ -30,12 +24,18 @@ Options:
           - jer:      world-gen.json compatible with Just Enough Resources
           - tall-csv: world-gen.csv file in CSV format - a row per each level and per each resource
 
-  -t, --threads <THREADS>
-          Number of worker threads to use for scanning dimensions. If set to zero, will be chosen automatically by rayon
+      --output <OUTFOLDER>
+          The folder to put the output file in. Will be created if missing. The default is a folder called "output" in the current working directory
           
-          [default: 0]
+          [default: output]
 
-  -o, --only-blocks-above <ONLY_BLOCKS_ABOVE>
+  -d, --dims <DIMENSION_ID>...
+          The dimension IDs to scan in the new format. Examples: 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end', 'jamd:mining'
+
+  -z, --zone <FROM_X> <TO_X> <FROM_Z> <TO_Z>
+          The zone to scan in every dimension, in regions, in the format of 'FROM_X,TO_X,FROM_Z,TO_Z' (separated either by commas or spaces). For example, '-1,1,-1,1' is a 2x2 square containing regions (-1,-1), (-1,0), (0,-1) and (0,0). If not provided, tries to scan all regions of each dimension
+
+      --only-blocks-above <ONLY_BLOCKS_ABOVE>
           If not none, only blocks with a normalized frequency above this value will be exported. Normalized frequency is the sum of frequencies by level divided by 255 (even in 1.18+ worlds which are higher than that). For example, a value of 0.01 means retain blocks more common that 1 in 100 (which is ~655 such blocks per 255-height chunk). The default value is 1e-7, which is about 26 blocks pre 4096 chunks. Some comparisons: minecraft:emerald_ore is ~3e-6, minecraft:deepslate_emerald_ore (1.18) is ~2e-7, minecraft:ancient_debris is ~2e-5
           
           [default: 1e-7]
@@ -49,6 +49,11 @@ Options:
           - skip:       Protochunks will be skipped
           - include:    Protochunks will be included in the scan
           - only-proto: *Only* protochunks will be scanned (useful for testing)
+
+  -t, --threads <THREADS>
+          Number of worker threads to use for scanning dimensions. If set to zero, will be chosen automatically by rayon
+          
+          [default: 0]
 ```
 
 Example command: `region_scanner.exe --path "D:\Games\MultiMC\instances\FTB Presents Direwolf20 1.16 v.1.4.1\.minecraft\saves\MyTestWorld" --dims minecraft:overworld minecraft:the_nether minecraft:the_end`.
@@ -64,7 +69,7 @@ Here we provide the zone to scan in each dimension explicitly, but it's also pos
 
 4. Watch the scanning progress. The program currently reports on starting every new region, as well as prints a report for every dimension.
 
-5. After finishing, the program will create (and overwrite if present) a `world-gen.json` file in the `output` folder where you put it. This file goes into the `/config` folder of your Minecraft instance. After reloading the world, your Just Enough Resources should find it and start showing the Ore Generation tabs for every block that was in the scanned area. Filtering by kind of block is currently not implemented (but see `--only-blocks-above`, which does a decent job of filtering out junk) - you can filter the JSON manually if needed.
+5. After finishing, the program will create (and overwrite if present) a `world-gen.json` file in the `output` folder in the current working directory (or in whatever directory you passed as `--output`). This file goes into the `/config` folder of your Minecraft instance. After reloading the world, your Just Enough Resources should find it and start showing the Ore Generation tabs for every block that was in the scanned area. Filtering by kind of block is currently not implemented (but see `--only-blocks-above`, which does a decent job of filtering out junk) - you can filter the JSON manually if needed.
 
 # Supported formats
 ## JER
