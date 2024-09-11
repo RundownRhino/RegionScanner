@@ -18,24 +18,24 @@ struct Args {
     /// This is the folder the 'region' folder is in.
     /// Example: 'D:\Games\MultiMC\instances\FTB Presents Direwolf20
     /// 1.16\v.1.4.1\.minecraft\saves\MyTestWorld'
-    #[arg(short, long, value_name = "SAVEFOLDER", value_hint=ValueHint::DirPath)]
+    #[arg(short='p', long, value_name = "SAVEFOLDER", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 
     /// The format to export to
-    #[arg(short, long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
+    #[arg(short='f', long, required=false, value_enum, default_value_t=ExportFormat::Jer)]
     format: ExportFormat,
 
     /// The folder to put the output file in. Will be created if missing. The
     /// default is a folder called "output" in the current working
     /// directory.
-    #[arg(short='o', long="output", value_name = "OUTFOLDER", value_hint=ValueHint::DirPath, default_value="output")]
+    #[arg(long="output", value_name = "OUTFOLDER", value_hint=ValueHint::DirPath, default_value="output")]
     output_folder: PathBuf,
 
     /// The dimension IDs to scan in the new format.
     /// Examples: 'minecraft:overworld', 'minecraft:the_nether',
     /// 'minecraft:the_end', 'jamd:mining'.
     #[arg(
-        short,
+        short='d',
         long,
         required = true,
         value_name = "DIMENSION_ID",
@@ -49,7 +49,7 @@ struct Args {
     /// (-1,0), (0,-1) and (0,0). If not provided, tries to scan all regions of
     /// each dimension.
     #[arg(
-        short,
+        short='z',
         long,
         required = false,
         value_names = ["FROM_X", "TO_X", "FROM_Z", "TO_Z"],
@@ -68,7 +68,7 @@ struct Args {
     /// Some comparisons: minecraft:emerald_ore is ~3e-6,
     /// minecraft:deepslate_emerald_ore (1.18) is ~2e-7,
     /// minecraft:ancient_debris is ~2e-5.
-    #[arg(short, long, required = false, default_value = "1e-7")]
+    #[arg(long, required = false, default_value = "1e-7")]
     only_blocks_above: Option<f64>,
 
     /// How to handle protochunks (chunks with a status other than
@@ -78,7 +78,7 @@ struct Args {
 
     /// Number of worker threads to use for scanning dimensions. If
     /// set to zero, will be chosen automatically by rayon.
-    #[arg(short, long, default_value_t = 0)]
+    #[arg(short='t', long, default_value_t = 0)]
     threads: usize,
 }
 
