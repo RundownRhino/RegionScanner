@@ -11,7 +11,7 @@ description = "A CLI program to scan Minecraft region files and create Just Enou
 clap = { version = "4.5.17", features = ["cargo", "derive"] }
 color-eyre = { version = "0.6.3", default-features = false }
 fastanvil = "0.31.0"
-itertools = "0.12.1"
+itertools = "0.14.0"
 log = "0.4.22"
 pretty_env_logger = "0.5.0"
 rayon = "1.10.0"
