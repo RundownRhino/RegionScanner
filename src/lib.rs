@@ -52,7 +52,10 @@ pub fn count_blocks(
         // This silently skips chunks that fail to deserialise.
         if let Ok(c) = JavaChunk::from_bytes(&data.data) {
             // See https://minecraft.wiki/w/Chunk_format
-            if c.status() != "minecraft:full" {
+            // It seems pre-1.18, "full" is used instead, so allow both.
+            let chunk_state = c.status();
+            let is_full = chunk_state == "minecraft:full" || chunk_state == "full";
+            if !is_full {
                 protochunks_seen += 1;
                 if proto == Skip {
                     continue;
