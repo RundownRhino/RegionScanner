@@ -390,7 +390,7 @@ fn print_results(result: &BlockFrequencies) {
                 name,
                 average * 100.0,
                 total * 256.0,
-                width = ((max_len + 4) / 5) * 5
+                width = max_len.div_ceil(5) * 5
             );
         }
     }
