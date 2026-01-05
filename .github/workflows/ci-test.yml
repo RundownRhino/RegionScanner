@@ -1,0 +1,52 @@
+name: release
+on:
+  push:
+    branches:
+    - master
+    - citest
+
+jobs:
+  build-ci:
+    name: build-ci
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET_FLAGS: ""
+      TARGET_DIR: ./target
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        # a smaller matrix for the test
+        build: [linux, win-msvc]
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-musl
+        - build: win-msvc
+          os: windows-latest
+          rust: stable
+          target: x86_64-pc-windows-msvc
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      # defaults to a fetch depth of 1.
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    
+    - name: Build debug binary
+      run: cargo build --target "${{ matrix.target }}" --target-dir "./target/${{ matrix.target }}-debug" --verbose
+    
+    - name: Build release binary
+      run: cargo build --target "${{ matrix.target }}" --target-dir "./target/${{ matrix.target }}-release" --verbose --release
+    
+    - name: Upload debug artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: region_scanner-citest-${{ matrix.os }}
+          path: |
+            ./target/${{ matrix.target }}-debug/region_scanner
+            ./target/${{ matrix.target }}-release/region_scanner
