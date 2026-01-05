@@ -43,11 +43,16 @@ jobs:
     
     - name: Build release binary
       run: cargo build --target "${{ matrix.target }}" --verbose --release
+
+    - name: Show target directory
+      run: |
+        ls -la ./target
+        ls -la "./target/${{ matrix.target }}"
     
     - name: Upload binaries
       uses: actions/upload-artifact@v4
       with:
-        name: region_scanner-citest-${{ matrix.os }}
+        name: region_scanner-citest-${{ matrix.target }}
         # https://doc.rust-lang.org/cargo/reference/build-cache.html says it'll be in target/<triple>/<release|debug>/
         path: |
           ./target/${{ matrix.target }}/release/region_scanner
