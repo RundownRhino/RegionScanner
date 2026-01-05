@@ -36,6 +36,7 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
+        targets: ${{ matrix.target }}
     
     - name: Build debug binary
       run: cargo build --target "${{ matrix.target }}" --target-dir "./target/${{ matrix.target }}-debug" --verbose
