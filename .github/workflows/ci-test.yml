@@ -46,8 +46,8 @@ jobs:
 
     - name: Show target directory
       run: |
-        ls -la ./target
-        ls -la "./target/${{ matrix.target }}"
+        ls ./target
+        ls "./target/${{ matrix.target }}"
     
     - name: Upload binaries
       uses: actions/upload-artifact@v4
