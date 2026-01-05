@@ -44,9 +44,9 @@ jobs:
       run: cargo build --target "${{ matrix.target }}" --target-dir "./target/${{ matrix.target }}-release" --verbose --release
     
     - name: Upload debug artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: region_scanner-citest-${{ matrix.os }}
-          path: |
-            ./target/${{ matrix.target }}-debug/region_scanner
-            ./target/${{ matrix.target }}-release/region_scanner
+      uses: actions/upload-artifact@v3
+      with:
+        name: region_scanner-citest-${{ matrix.os }}
+        path: |
+          ./target/${{ matrix.target }}-debug/region_scanner
+          ./target/${{ matrix.target }}-release/region_scanner
